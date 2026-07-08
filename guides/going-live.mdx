@@ -1,0 +1,50 @@
+---
+title: "Going live checklist"
+description: "Everything to verify before real customers pay you through Qint."
+icon: "list-check"
+---
+
+Work through this once, top to bottom, before launch. Most production incidents trace back to a skipped line here.
+
+## Account
+
+- [ ] **Merchant approved.** Onboarding submitted and approved — the API and checkout refuse unapproved merchants.
+- [ ] **Bank details correct.** Payouts go to the account from your onboarding profile; a typo here delays your money, not Qint's.
+- [ ] **Branding set.** Logo, brand color and support email appear on the hosted checkout — buyers should recognize you.
+- [ ] **Accepted assets reviewed.** The default is USDT, USDC, ETH and BTC; enable [more assets](/accept-payments/assets-and-networks) deliberately, not accidentally.
+- [ ] **Team roles assigned.** Give finance staff the Finance role for payouts and underpayment reviews; developers the Developer role for keys and webhooks. Don't share Owner logins.
+
+## API integration
+
+- [ ] **API key stored as a secret** — environment variable or secret manager, never in code or a browser. Remember it was [shown once](/authentication#keys-are-shown-once).
+- [ ] **Scopes are minimal.** Write only where payments are created; Read for reporting jobs.
+- [ ] **Idempotency keys on every create.** Your order id, passed as `idempotencyKey`, makes [retries safe](/accept-payments/api-payments#idempotency).
+- [ ] **Currency guard.** You only send `CHF`, `EUR` or `USD` — anything else is a `400`.
+- [ ] **`returnUrl` handled as UX, not truth.** The [return redirect](/accept-payments/api-payments#the-return-url) carries `qint_intent` and `status`, but fulfilment waits for `settled` via webhook or API.
+- [ ] **429s handled.** Back off and retry; with idempotency keys this is always safe.
+
+## Webhooks
+
+- [ ] **Endpoint is https and registered** in Developers → Webhooks; the `whsec_…` secret is stored as a secret.
+- [ ] **Signature verification is constant-time and uses the raw body.** Test with a [tampered payload](/webhooks/verifying-signatures) — it must be rejected.
+- [ ] **Test event passes.** Send a `ping` from the dashboard; the [delivery log](/webhooks/delivery-and-retries#the-delivery-log) shows 2xx.
+- [ ] **Handler returns 2xx fast** and processes asynchronously.
+- [ ] **Dedupe on `X-Qint-Event-Id`** — retries redeliver the same id.
+- [ ] **All statuses handled**, including `failed`, `expired`, `cancelled` — and the [`underpaid` flag](/guides/underpayments).
+- [ ] **Reconciliation fallback exists.** A periodic job (or on-return check) calls `GET /api/v1/intents/{id}` for orders still awaiting payment, so a dead-lettered webhook can't strand an order.
+
+## Operations
+
+- [ ] **Fulfilment fires on `settled` only.** Not `confirmed`, not the buyer returning to your site.
+- [ ] **Underpayment playbook agreed.** Who reviews the queue, and by what rule they accept or decline. Emails go to Owners/Admins when a payment comes up short.
+- [ ] **Payout rhythm chosen.** [Manual or scheduled](/guides/payouts); whoever owns finance can find the payout reference for bank reconciliation.
+- [ ] **Key rotation plan.** Calendar the rotation; the dashboard's last-used timestamps show when an old key has gone quiet.
+- [ ] **Delivery log checked after launch.** In the first days, glance at webhook deliveries for anything red.
+
+<Note>
+Base URL for production is `https://qint-api.fly.dev` today; `api.qint.ch`
+is coming. Keep the base URL configurable so the switch is a config change,
+not a deploy.
+</Note>
+
+Questions before switching on? [support@qint.ch](mailto:support@qint.ch).

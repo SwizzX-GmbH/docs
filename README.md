@@ -1,55 +1,54 @@
-# Mintlify Starter Kit
+# Qint developer documentation
 
-Use the starter kit to get your docs deployed and ready to customize.
+Developer docs for [Qint](https://qint.ch) — built with [Mintlify](https://mintlify.com) (`docs.json` format). Will live at **docs.qint.ch**.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
-
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
+## Local preview
 
 ```bash
-npx skills add https://mintlify.com/docs
+npx mint@latest dev
 ```
 
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
+Opens a live-reloading preview at http://localhost:3000. Useful extras:
 
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
-
-```
-npm i -g mint
+```bash
+npx mint@latest broken-links        # check every internal link resolves
+npx mint@latest openapi-check openapi.yaml   # validate the OpenAPI spec
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+(Requires Node 20+. The first run downloads the Mintlify preview bundle.)
+
+## Layout
 
 ```
-mint dev
+docs.json           Mintlify config: branding, colors, navigation tabs
+openapi.yaml        OpenAPI 3.1 spec for the merchant API (renders the API Reference tab)
+*.mdx               Getting-started pages
+accept-payments/    Payment links, invoices, API payments, assets & networks
+webhooks/           Overview, signature verification, events, delivery & retries
+guides/             WooCommerce, underpayments, payouts, going-live checklist
+api-reference/      API intro + one page per endpoint (wired to openapi.yaml)
+logo/, favicon.svg  Brand assets (light + dark logos)
 ```
 
-View your local preview at `http://localhost:3000`.
+Editing content = editing the `.mdx` files. Adding a page = create the `.mdx` file **and** list it in `docs.json` under `navigation`. Changing an endpoint = edit `openapi.yaml` (the endpoint pages under `api-reference/` pick it up automatically).
 
-## Publishing changes
+## Publishing to docs.qint.ch (one-time setup, ~10 minutes)
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+1. **Sign up at [mintlify.com](https://mintlify.com)** (Start for free) using the
+   SwizzX GmbH GitHub account, which creates your Mintlify dashboard at
+   `dashboard.mintlify.com`.
 
-## Need help?
+2. **Connect the GitHub repo.** Push this folder to
+   `SwizzX-GmbH/qint-docs`, then in the Mintlify dashboard install the
+   **Mintlify GitHub App** and grant it access to that repository
+   (Dashboard → Settings → GitHub App, or the prompt during onboarding).
+   Every push to the default branch now auto-deploys the docs.
 
-### Troubleshooting
+3. **Add the custom domain.** Dashboard → Settings → Domain Setup → enter
+   `docs.qint.ch`. Mintlify shows you a **CNAME target** — add that CNAME
+   record for the `docs` subdomain at qint.ch's DNS provider. Once DNS
+   propagates, Mintlify provisions TLS automatically and
+   https://docs.qint.ch is live.
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
-
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+Until step 3 completes, the docs are reachable at the `*.mintlify.app`
+subdomain assigned in the dashboard.

@@ -1,0 +1,178 @@
+---
+title: "API payments"
+description: "Create payment intents from your backend and hand the buyer to the hosted checkout."
+icon: "code"
+---
+
+The merchant API gives you programmatic payments with three endpoints and zero payment UI: create an intent, redirect the buyer to the returned `checkoutUrl`, and react to the webhook. Amounts are per-order, titles are per-order — everything a shop needs.
+
+You'll need an [API key](/authentication) with the **Write** scope (plus **Read** for fetching).
+
+## Step 1 — Create a payment intent
+
+<CodeGroup>
+
+```bash cURL
+curl -s -X POST https://qint-api.fly.dev/api/v1/intents \
+  -H "Authorization: Bearer $QINT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 49.90,
+    "currency": "CHF",
+    "title": "Order #1001",
+    "idempotencyKey": "order-1001",
+    "returnUrl": "https://shop.example.ch/checkout/order-received/1001"
+  }'
+```
+
+```javascript Node.js
+const res = await fetch("https://qint-api.fly.dev/api/v1/intents", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.QINT_API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    amount: 49.9,
+    currency: "CHF",
+    title: "Order #1001",
+    idempotencyKey: "order-1001",
+    returnUrl: "https://shop.example.ch/checkout/order-received/1001",
+  }),
+});
+const intent = await res.json(); // res.status: 201 new, 200 idempotent replay
+```
+
+```php PHP
+$ch = curl_init('https://qint-api.fly.dev/api/v1/intents');
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => [
+        'Authorization: Bearer ' . getenv('QINT_API_KEY'),
+        'Content-Type: application/json',
+    ],
+    CURLOPT_POSTFIELDS => json_encode([
+        'amount' => 49.90,
+        'currency' => 'CHF',
+        'title' => 'Order #1001',
+        'idempotencyKey' => 'order-1001',
+        'returnUrl' => 'https://shop.example.ch/checkout/order-received/1001',
+    ]),
+]);
+$intent = json_decode(curl_exec($ch), true);
+```
+
+```python Python
+import os, requests
+
+res = requests.post(
+    "https://qint-api.fly.dev/api/v1/intents",
+    headers={"Authorization": f"Bearer {os.environ['QINT_API_KEY']}"},
+    json={
+        "amount": 49.90,
+        "currency": "CHF",
+        "title": "Order #1001",
+        "idempotencyKey": "order-1001",
+        "returnUrl": "https://shop.example.ch/checkout/order-received/1001",
+    },
+)
+intent = res.json()  # res.status_code: 201 new, 200 idempotent replay
+```
+
+</CodeGroup>
+
+```json Response (201 Created)
+{
+  "id": "pi_x7k2m9p4q1w8",
+  "status": "initiated",
+  "amount": 49.90,
+  "currency": "CHF",
+  "title": "Order #1001",
+  "assetSymbol": null,
+  "cryptoAmount": null,
+  "depositAddress": null,
+  "checkoutUrl": "https://checkout.qint.ch/pay/pi_x7k2m9p4q1w8",
+  "returnUrl": "https://shop.example.ch/checkout/order-received/1001",
+  "createdAt": "2026-07-08T09:15:00+00:00",
+  "expiresAt": "2026-07-08T09:30:00+00:00",
+  "confirmedAt": null,
+  "settledAt": null
+}
+```
+
+Field rules ([full reference](/api-reference/create-intent)):
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `amount` | yes | Positive number, in the fiat currency. |
+| `currency` | yes | `CHF`, `EUR` or `USD` — nothing else. |
+| `title` | no | Shown on the checkout; falls back to your merchant display name. |
+| `idempotencyKey` | no, but recommended | Unique per merchant — see [idempotency](#idempotency). |
+| `returnUrl` | no | Absolute **https** URL, max 500 chars — see [return URL](#the-return-url). |
+
+## Step 2 — Redirect the buyer
+
+Send the buyer to `checkoutUrl`. The hosted checkout shows your title, amount and branding, lets the buyer pick an asset and network, and displays the exact crypto amount and deposit address. The whole attempt lives inside the **15-minute window** that started at creation (`expiresAt`).
+
+## Step 3 — Learn the outcome
+
+**Webhooks are the source of truth.** Create a [webhook endpoint](/webhooks/overview) and handle [`payment.status` events](/webhooks/events) — you'll get one for every status transition. Fulfil the order when the status reaches **`settled`**.
+
+**Reconcile with GET.** Whether as a fallback for a missed webhook, on the buyer's return to your site, or in a periodic sweep:
+
+```bash
+curl -s https://qint-api.fly.dev/api/v1/intents/pi_x7k2m9p4q1w8 \
+  -H "Authorization: Bearer $QINT_API_KEY"
+```
+
+The reported status is live — an intent whose window lapsed reads `expired` immediately. You can also [list intents](/api-reference/list-intents) with a status filter and paging.
+
+### The status lifecycle
+
+```text
+initiated ──► pending ──► confirmed ──► settled
+    │            │            │
+    └────────────┴────────────┴──► failed / expired / cancelled
+```
+
+| Status | Meaning |
+| --- | --- |
+| `initiated` | Created; buyer hasn't paid yet. |
+| `pending` | Deposit observed, awaiting confirmation. |
+| `confirmed` | Confirmed on-chain, settlement in progress. |
+| `settled` | Done — **fulfil on this status, not before.** |
+| `failed` | The payment failed. |
+| `expired` | The 15-minute window passed without a completed payment. |
+| `cancelled` | The payment was cancelled. |
+
+Terminal states never change — with one deliberate exception: you can accept an [underpaid, expired payment](/guides/underpayments) from the dashboard review queue, which moves it `expired → settled` with all settlement side effects.
+
+## Idempotency
+
+`idempotencyKey` is unique **per merchant**. If a create request is retried with a key you've used before, the API returns the **original intent** with `200 OK` instead of minting a duplicate (a fresh create returns `201 Created`).
+
+<Tip>
+Always send an idempotency key derived from your own records — your order id
+is perfect. Then a network timeout is never scary: retry the exact same
+request and you'll get the same intent back.
+</Tip>
+
+## The return URL
+
+Pass `returnUrl` (absolute **https**, ≤ 500 characters) and the hosted checkout shows a **"Return to merchant"** action. When the buyer clicks it, they navigate back to your URL with two query parameters appended:
+
+```text
+https://shop.example.ch/checkout/order-received/1001?qint_intent=pi_x7k2m9p4q1w8&status=settled
+```
+
+| Parameter | Value |
+| --- | --- |
+| `qint_intent` | The payment intent id (`pi_…`). |
+| `status` | The intent's status at the moment of return. |
+
+<Warning>
+The return redirect is a UX convenience, **not** a payment confirmation —
+the buyer may return before settlement, or never return at all. Verify with
+the webhook or `GET /api/v1/intents/{id}` before fulfilling.
+</Warning>

@@ -1,0 +1,97 @@
+---
+title: "WooCommerce"
+description: "Add a \"Pay with crypto\" method to your WooCommerce store with the Qint plugin."
+icon: "wordpress"
+---
+
+The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checkout. Customers are redirected to Qint's hosted checkout; orders update automatically via signed webhooks, with a polling fallback in case a webhook is missed.
+
+**Requirements:** WooCommerce 8.x+ on WordPress 6.x, PHP 7.4+, store currency **CHF, EUR or USD**, and a Qint merchant account that's been approved. The plugin is HPOS (custom order tables) and block-checkout compatible.
+
+<Steps>
+  <Step title="Install the plugin">
+    Get `qint-payments.zip`, then in WP Admin go to
+    **Plugins → Add New → Upload Plugin**, choose the zip, and **Activate**.
+    WooCommerce must already be active.
+  </Step>
+
+  <Step title="Create an API key">
+    In the [Qint dashboard](https://dashboard.qint.ch):
+    **Developers → API keys → Create key.** Label it (e.g. `woocommerce`) and
+    select **both Read and Write scopes** — Write creates payment intents;
+    Read powers status polling and the settings-page connection test.
+
+    <Warning>Copy the `qk_live_…` key now — it is shown only once.</Warning>
+  </Step>
+
+  <Step title="Configure the gateway">
+    1. WP Admin → **WooCommerce → Settings → Payments → Qint — Pay with crypto → Manage**.
+    2. Tick **Enable Qint crypto payments**.
+    3. Optionally adjust the Title (default: "Pay with crypto") and Description.
+    4. Paste the **API key** and save.
+
+    The plugin immediately tests the key against the Qint API:
+
+    | Notice | Meaning |
+    | --- | --- |
+    | Green | Key verified — you're connected. |
+    | Red, mentions 401 | The key is wrong or revoked. |
+    | Red, mentions scopes | Recreate the key with **Read + Write**. |
+
+    <Note>
+    The payment method only appears at checkout when the store currency is
+    CHF, EUR or USD (WooCommerce → Settings → General → Currency).
+    </Note>
+  </Step>
+
+  <Step title="Create the webhook endpoint">
+    Your site's webhook receiver URL is:
+
+    ```text
+    https://YOURSITE/wp-json/qint/v1/webhook
+    ```
+
+    (It's also displayed under the "Webhook signing secret" field in the
+    gateway settings.)
+
+    1. Qint dashboard → **Developers → Webhooks → Add endpoint** → paste that URL.
+    2. Copy the **signing secret** shown on creation — shown **only once**.
+    3. Paste it into the gateway's **Webhook signing secret** field and save.
+    4. Press **Send test event** in the dashboard — the delivery should show
+       as delivered (HTTP 200). A 401 means the secret in WooCommerce doesn't
+       match.
+
+    For webhooks to work:
+
+    - The site must be reachable over **HTTPS** from the public internet.
+    - WordPress permalinks must not be "Plain" if your host blocks
+      `?rest_route=` (pretty permalinks guarantee `/wp-json/…` works).
+    - Security plugins/WAFs must allow unauthenticated POSTs to
+      `/wp-json/qint/v1/webhook` — the request is authenticated by its
+      [HMAC signature](/webhooks/verifying-signatures), not by cookies.
+  </Step>
+</Steps>
+
+## How orders are updated
+
+| Qint intent status | WooCommerce order |
+| --- | --- |
+| `settled` | Payment complete (processing/completed) + note with asset & amount |
+| `confirmed` / `pending` / `initiated` | Order note only |
+| `failed` | Failed |
+| `expired` / `cancelled` | Cancelled (only if the order was still pending) |
+| `underpaid = true` (non-terminal) | On hold + note "partial payment received — awaiting decision" |
+
+Webhooks are the primary mechanism. As a fallback, when the customer lands on the order-received (thank-you) page or the order-pay page and the order is still pending/on-hold, the plugin polls `GET /intents/{id}` once (throttled to one call per 30 s) and applies the same mapping.
+
+The admin order screen shows a **Qint payment** box with the intent id, cached status and a dashboard link; the cache self-refreshes when older than 2 minutes while payment is pending.
+
+<Tip>
+An "on hold" order means the customer underpaid. Decide in the Qint
+dashboard's review queue whether to accept the lesser amount or decline —
+see [underpayments](/guides/underpayments).
+</Tip>
+
+## Uninstall
+
+Deleting the plugin from the Plugins screen removes its settings and transients. Order meta (intent ids, statuses) is preserved as part of your order history.

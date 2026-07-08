@@ -1,0 +1,46 @@
+---
+title: "Introduction"
+description: "Accept crypto payments. Settle in CHF, EUR or USD."
+icon: "hand-wave"
+---
+
+Qint lets your business accept crypto — USDT, USDC, ETH, BTC and seven more assets — while you price, invoice and settle entirely in **CHF, EUR or USD**. Your customers pay from any wallet; you get fiat.
+
+## How a payment works
+
+1. You create a payment: a [payment link](/accept-payments/payment-links), an [invoice](/accept-payments/invoices), or a [payment intent via the API](/accept-payments/api-payments).
+2. The buyer lands on Qint's hosted checkout at `checkout.qint.ch`, picks an asset and network, and gets a deposit address with the exact crypto amount — locked for 15 minutes.
+3. Qint confirms the deposit and settles the payment. You're notified by [webhook](/webhooks/overview), the payment appears in your [dashboard](https://dashboard.qint.ch), and the funds become a fiat balance you [pay out](/guides/payouts) to your bank.
+
+You never quote an exchange rate, hold a wallet, or reconcile on-chain amounts — the checkout, quoting, and settlement are Qint's job.
+
+## Choose how you get paid
+
+<CardGroup cols={2}>
+  <Card title="Payment links" icon="link" href="/accept-payments/payment-links">
+    Create a reusable checkout URL in the dashboard. No code.
+  </Card>
+  <Card title="Invoices" icon="file-invoice" href="/accept-payments/invoices">
+    Draft, send and track invoices with a hosted "Pay now" page and PDF. No code.
+  </Card>
+  <Card title="API payments" icon="code" href="/accept-payments/api-payments">
+    Create payment intents from your backend and redirect buyers to the hosted checkout.
+  </Card>
+  <Card title="WooCommerce" icon="wordpress" href="/guides/woocommerce">
+    Drop-in plugin: a "Pay with crypto" method for your WooCommerce store.
+  </Card>
+</CardGroup>
+
+## The pieces
+
+| Surface | URL | What it's for |
+| --- | --- | --- |
+| Dashboard | [dashboard.qint.ch](https://dashboard.qint.ch) | Payments, links, invoices, payouts, team, API keys, webhooks |
+| Hosted checkout | `checkout.qint.ch` | Where your buyers pay — you never build a payment UI |
+| API | `https://qint-api.fly.dev` | The merchant API (`api.qint.ch` coming soon) — see the [API reference](/api-reference/introduction) |
+
+## Next steps
+
+<Card title="Quickstart" icon="rocket" href="/quickstart">
+  Create an account, grab an API key, and take your first payment in three steps.
+</Card>

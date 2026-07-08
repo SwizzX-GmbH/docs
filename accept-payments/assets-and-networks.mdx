@@ -1,0 +1,63 @@
+---
+title: "Assets & networks"
+description: "The 11 crypto assets buyers can pay with, and how network selection works."
+icon: "coins"
+---
+
+Qint's catalog covers **11 assets**. You choose which ones your business accepts (dashboard → onboarding / settings); the buyer chooses among them at checkout. Whatever they pick, you settle in CHF, EUR or USD.
+
+## The catalog
+
+| Asset | Symbol | Networks (default first) |
+| --- | --- | --- |
+| Tether | `USDT` | Tron (TRC-20) · Ethereum (ERC-20) · Solana |
+| USD Coin | `USDC` | Ethereum (ERC-20) · Tron (TRC-20) · Solana |
+| Ether | `ETH` | Ethereum |
+| Bitcoin | `BTC` | Bitcoin |
+| Solana | `SOL` | Solana |
+| Tron | `TRX` | Tron |
+| Dogecoin | `DOGE` | Dogecoin |
+| Cardano | `ADA` | Cardano |
+| XRP | `XRP` | XRP Ledger |
+| Stellar Lumens | `XLM` | Stellar |
+| Sui | `SUI` | Sui |
+
+USDT and USDC are **multi-network**: the checkout shows one row per network variant, and the **buyer picks the network**. Acceptance is symbol-level on your side — accepting USDT means accepting it on all of its networks.
+
+<Note>
+New merchants accept the default set — **USDT, USDC, ETH and BTC** — until
+they opt into more. Additional assets are enabled per symbol in the
+dashboard.
+</Note>
+
+## How the checkout quotes
+
+1. The checkout shows your accepted assets as a grid with **indicative** crypto amounts based on live rates. The rate is network-independent, so a stablecoin's variants share one indicative amount.
+2. When the buyer selects an asset (and network), the amount is quoted for real and **locked**, and a deposit address is issued. The buyer must send **exactly** the quoted crypto amount to that address.
+3. The lock lives inside the payment's **15-minute window** — after `expiresAt`, an unpaid intent is `expired` and the address must not be paid.
+
+If the buyer changes their mind and picks a *different* asset or network, the previous quote and address are cancelled and fresh ones are issued. Re-picking the same asset and network is a no-op.
+
+<Warning>
+Amounts are exact-per-quote. A buyer who sends less than the locked amount
+triggers the [underpayment flow](/guides/underpayments); crypto amounts in
+API and webhook payloads are 8-decimal-place **strings** (e.g.
+`"49.90000000"`) to avoid floating-point drift.
+</Warning>
+
+## Network identifiers
+
+Where the API exposes a network (`chain` fields on checkout payloads), it uses these identifiers:
+
+`ETHEREUM`, `BITCOIN`, `SOLANA`, `TRON`, `DOGECOIN`, `CARDANO`, `XRPL`, `STELLAR`, `SUI`
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="API payments" icon="code" href="/accept-payments/api-payments">
+    Create intents and read back `assetSymbol` and `cryptoAmount`.
+  </Card>
+  <Card title="Underpayments" icon="scale-unbalanced" href="/guides/underpayments">
+    Tolerance, review queue, and partial payments.
+  </Card>
+</CardGroup>

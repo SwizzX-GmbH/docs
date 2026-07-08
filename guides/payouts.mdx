@@ -1,0 +1,56 @@
+---
+title: "Payouts"
+description: "Balances, the holding period, and getting your money out."
+icon: "building-columns"
+---
+
+Settled payments accumulate as fiat balances — one per currency — which you pay out manually or on a schedule. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
+
+## Balances
+
+Every settled payment credits your balance in its currency. Each balance splits in two:
+
+| Bucket | Meaning |
+| --- | --- |
+| **Pending** | Funds from payments settled within the holding period. Not yet withdrawable. |
+| **Available** | Funds past the holding period, minus everything reserved by non-cancelled payouts. Withdrawable. |
+
+The **holding period** is 1–3 days (default 2), set on your account by Qint. Requested and scheduled payouts reserve their amount from the available balance immediately — you can never request more than is available.
+
+## Manual payouts
+
+**Dashboard → Payouts → Request payout.** Choose the type, amount, currency, and an optional note. Requires the Owner, Admin or Finance role.
+
+| Type | What it means |
+| --- | --- |
+| **Bank** | Transfer to the bank account from your onboarding profile. |
+| **Cash** | A cash disbursement, recorded and tracked. |
+| **Crypto** | A crypto disbursement, recorded and tracked. |
+
+Qint payouts are **record-and-track**: the payout request is registered with Qint's payment partner for execution, and its status updates flow back into your dashboard automatically. Each payout carries a reference once executed — use it to reconcile against your bank statement.
+
+### Payout lifecycle
+
+```text
+Requested ──► Scheduled ──► Executed
+     │             │
+     └─────────────┴──► Cancelled  (releases the reserved funds)
+```
+
+A payout request that can't reach the payment partner immediately is retried automatically in the background — it stays visible as Requested with a sync-pending marker until confirmed.
+
+## Scheduled payouts
+
+Prefer a standing sweep? **Dashboard → Payout settings** offers:
+
+| Schedule | Runs |
+| --- | --- |
+| Daily | Every day |
+| Weekly | Mondays |
+| Monthly | The 1st of the month |
+
+When due, Qint automatically creates a **Bank** payout of the full available balance per currency — provided it's at least **10.00** in that currency. You can scope the schedule to a single currency or let it sweep all of them. Configuring schedules requires the Owner or Admin role.
+
+## Fees
+
+Qint's fee is a small **conversion spread** applied when crypto is converted to your settlement currency — there are no payout fees and no fee lines on invoices or checkout. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.

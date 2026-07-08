@@ -1,0 +1,77 @@
+---
+title: "Invoices"
+description: "Draft, send and track invoices with a hosted payment page and PDF."
+icon: "file-invoice"
+---
+
+Qint invoicing covers the whole loop: draft an invoice with line items, email it to your customer with a **Pay now** button, let them pay crypto on the hosted invoice page, and have the invoice mark itself **Paid** the moment the payment settles.
+
+## The flow
+
+<Steps>
+  <Step title="Add a customer">
+    **Customers → Add customer** — name and email are required; company and
+    address enrich the invoice PDF. Customers are archived, never deleted, so
+    old invoices keep their reference.
+  </Step>
+  <Step title="Draft the invoice">
+    **Invoices → Create invoice** — pick the customer, currency (CHF, EUR or
+    USD), due date, optional memo, and line items. Line amounts are computed
+    server-side (`quantity × unit price`). Numbers are sequential per merchant
+    (`INV-1001`, `INV-1002`, …).
+
+    <Note>
+    The total always equals the subtotal. Qint's fee is a conversion spread —
+    it never appears as a line on an invoice or at checkout.
+    </Note>
+  </Step>
+  <Step title="Send it">
+    **Send** moves the invoice from Draft to **Open**, stamps the issue date,
+    and emails your customer a "Pay now" link
+    (`https://checkout.qint.ch/pay/inv_…`) with the invoice PDF attached.
+    Sending again while Open re-sends the email.
+  </Step>
+  <Step title="Customer pays on the hosted page">
+    The hosted invoice page shows the line items, due date and your branding,
+    plus the [asset grid](/accept-payments/assets-and-networks). Paying works
+    exactly like any other checkout — a 15-minute payment window per attempt.
+    If the customer reopens the emailed link while a payment attempt is still
+    live, the same attempt is resumed rather than stacking a new one.
+  </Step>
+  <Step title="Paid, automatically">
+    When the payment **settles** (confirmation alone isn't enough), the
+    invoice flips to **Paid**, the paid date and payment are recorded, and the
+    customer receives a confirmation email with a receipt. You get the same
+    signal as [`payment.status` webhooks](/webhooks/events) with `invoiceId`
+    set.
+  </Step>
+</Steps>
+
+## Statuses
+
+| Status | Meaning | Payable? |
+| --- | --- | --- |
+| **Draft** | Being edited; fully mutable. Not visible to the customer. | No |
+| **Open** | Sent and awaiting payment. | Yes |
+| **Paid** | A payment settled against it. Terminal. | No |
+| **Overdue** | Open past its due date (flipped by a background sweep). | Yes |
+| **Void** | Cancelled from Draft, Open or Overdue — never from Paid. Terminal. | No |
+
+The emailed link keeps working after payment: a Paid invoice renders as a paid confirmation (with PDF download) instead of a dead end.
+
+## PDFs
+
+- **Dashboard:** every invoice has a PDF (drafts included, for preview) — inline view or download.
+- **Hosted page:** customers can download the PDF for Open, Overdue and Paid invoices. Draft and Void invoices are never publicly visible — their public URLs return 404.
+- Paid invoices are watermarked **PAID**.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Underpayments" icon="scale-unbalanced" href="/guides/underpayments">
+    What happens when a customer sends slightly too little.
+  </Card>
+  <Card title="Webhooks" icon="bolt" href="/webhooks/overview">
+    Get notified when an invoice's payment settles.
+  </Card>
+</CardGroup>

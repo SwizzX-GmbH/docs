@@ -1,0 +1,86 @@
+---
+title: "Event types"
+description: "The payment.status payload, field by field — plus the ping test event."
+icon: "list"
+---
+
+Qint currently emits two event types. Build your handler to **ignore event types it doesn't recognize** (still returning 2xx) so future event types never break you.
+
+## `payment.status`
+
+Sent to every active endpoint on **each status transition** of a payment intent — and re-sent, with the underpayment fields populated, when an underpayment is detected on a payment (see below).
+
+```json
+{
+  "type": "payment.status",
+  "intentId": "pi_x7k2m9p4q1w8",
+  "status": "settled",
+  "amount": 49.90,
+  "currency": "CHF",
+  "assetSymbol": "USDT",
+  "invoiceId": null,
+  "paymentLinkId": null,
+  "occurredAt": "2026-07-08T09:24:03+00:00"
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `type` | string | Always `payment.status`. |
+| `intentId` | string | The payment intent (`pi_…`) this event is about. |
+| `status` | string | The intent's status **after** the transition: `initiated`, `pending`, `confirmed`, `settled`, `failed`, `expired` or `cancelled`. |
+| `amount` | number | The fiat amount of the payment. |
+| `currency` | string | `CHF`, `EUR` or `USD`. |
+| `assetSymbol` | string \| null | The crypto asset the buyer chose, once chosen. |
+| `invoiceId` | string \| null | Set when the payment pays an [invoice](/accept-payments/invoices) (`inv_…`). |
+| `paymentLinkId` | string \| null | Set when the payment came through a [payment link](/accept-payments/payment-links) (`pl_…`). |
+| `occurredAt` | string (ISO 8601) | When the transition happened. |
+
+<Tip>
+Fulfil on `status: "settled"` and nothing else. `confirmed` means the
+crypto is confirmed on-chain but settlement to fiat hasn't completed.
+</Tip>
+
+### Underpayment fields
+
+When the payment partner detects that a buyer sent **less than the quoted amount**, the `payment.status` event is re-emitted for the intent's current (unchanged) status, carrying three extra fields:
+
+```json
+{
+  "type": "payment.status",
+  "intentId": "pi_x7k2m9p4q1w8",
+  "status": "pending",
+  "amount": 49.90,
+  "currency": "CHF",
+  "assetSymbol": "USDT",
+  "invoiceId": null,
+  "paymentLinkId": null,
+  "underpaid": true,
+  "expectedCryptoAmount": "55.48765432",
+  "receivedCryptoAmount": "53.20000000",
+  "occurredAt": "2026-07-08T09:21:40+00:00"
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `underpaid` | boolean | `true` when the received amount is short. A **flag, not a status** — the intent's status is unchanged by the detection itself. |
+| `expectedCryptoAmount` | string | The quoted crypto amount, as an 8-decimal string. |
+| `receivedCryptoAmount` | string | What actually arrived, as an 8-decimal string. |
+
+What to do with an underpaid event — including the merchant review queue for payments that expire underpaid — is covered in the [underpayments guide](/guides/underpayments).
+
+## `ping`
+
+Emitted when you press **Send test event** in the dashboard. It travels the same pipeline as real events — same signature scheme, same `X-Qint-Event-Id` header, same retry behavior — with `"type": "ping"` in the payload. Verify it like any event, then return 2xx and ignore it.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Verifying signatures" icon="shield-check" href="/webhooks/verifying-signatures">
+    Working verification code in four languages.
+  </Card>
+  <Card title="Delivery & retries" icon="clock-rotate-left" href="/webhooks/delivery-and-retries">
+    The retry schedule and the delivery log.
+  </Card>
+</CardGroup>

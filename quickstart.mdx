@@ -1,47 +1,92 @@
 ---
 title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+description: "From zero to your first crypto payment in a few minutes."
+icon: "rocket"
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+This guide takes you from a fresh account to a settled test payment using the merchant API. If you'd rather not write code, start with [payment links](/accept-payments/payment-links) instead — everything there happens in the dashboard.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Create your account and get approved">
+    1. Register at [dashboard.qint.ch](https://dashboard.qint.ch) and verify your email.
+    2. Complete the onboarding wizard: business profile, bank account (where your payouts go), accepted assets, and branding.
+    3. Submit for review. Once your merchant is **approved**, you can accept payments.
 
-    ```bash
-    npm install your-package
-    ```
+    <Note>
+    Until your merchant is approved, the API rejects requests and payment
+    links can't be created. You can already explore the dashboard and invite
+    your team while you wait.
+    </Note>
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Create an API key">
+    In the dashboard, go to **Developers → API keys → Create key**. Give it a
+    label and select the scopes it needs — **Write** to create payments,
+    **Read** to fetch them.
+
+    <Warning>
+    The full `qk_live_…` key is shown **once**, at creation. Qint stores only
+    a hash of it. Copy it into your secret manager immediately — if you lose
+    it, create a new key and revoke the old one.
+    </Warning>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+
+  <Step title="Take your first payment — three calls">
+    **1. Create a payment intent** from your backend:
 
     ```bash
-    your-cli start
+    curl -s -X POST https://qint-api.fly.dev/api/v1/intents \
+      -H "Authorization: Bearer $QINT_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "amount": 49.90,
+        "currency": "CHF",
+        "title": "Order #1001",
+        "idempotencyKey": "order-1001"
+      }'
     ```
+
+    ```json
+    {
+      "id": "pi_x7k2m9p4q1w8",
+      "status": "initiated",
+      "amount": 49.90,
+      "currency": "CHF",
+      "title": "Order #1001",
+      "checkoutUrl": "https://checkout.qint.ch/pay/pi_x7k2m9p4q1w8",
+      "expiresAt": "2026-07-08T09:30:00+00:00"
+    }
+    ```
+
+    **2. Send the buyer to `checkoutUrl`.** They pick an asset and network on
+    the hosted checkout and pay the quoted crypto amount within the 15-minute
+    window.
+
+    **3. Confirm the result.** Listen for the
+    [`payment.status` webhook](/webhooks/events) — or poll while you're testing:
+
+    ```bash
+    curl -s https://qint-api.fly.dev/api/v1/intents/pi_x7k2m9p4q1w8 \
+      -H "Authorization: Bearer $QINT_API_KEY"
+    ```
+
+    A payment is yours to fulfil when `status` is **`settled`** — not before.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Where to go next
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+<CardGroup cols={2}>
+  <Card title="API payments, in depth" icon="code" href="/accept-payments/api-payments">
+    Idempotency, return URLs, the full status lifecycle.
+  </Card>
+  <Card title="Webhooks" icon="bolt" href="/webhooks/overview">
+    Get pushed a signed event on every status change.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Scopes, key rotation, and how to send credentials.
+  </Card>
+  <Card title="Going live" icon="list-check" href="/guides/going-live">
+    The pre-launch checklist.
+  </Card>
+</CardGroup>

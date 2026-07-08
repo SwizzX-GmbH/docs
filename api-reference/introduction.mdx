@@ -1,0 +1,77 @@
+---
+title: "API introduction"
+description: "Base URL, authentication, errors, pagination and conventions."
+icon: "book"
+---
+
+The Qint merchant API is a small, server-to-server REST API around one resource: the **payment intent**. Create one, redirect the buyer to its `checkoutUrl`, and learn the outcome via [webhooks](/webhooks/overview) or reads.
+
+## Base URL
+
+```text
+https://qint-api.fly.dev
+```
+
+All endpoints are versioned under `/api/v1`.
+
+<Note>
+`api.qint.ch` is coming as the stable production hostname. Keep the base URL
+in configuration so switching is a one-line change.
+</Note>
+
+## Authentication
+
+Send your `qk_live_…` API key with every request, either way:
+
+```bash
+-H "Authorization: Bearer qk_live_…"
+# or
+-H "X-Api-Key: qk_live_…"
+```
+
+Keys carry **Read** and/or **Write** scopes; requests outside a key's scopes return `403`. See [Authentication](/authentication) for creation and rotation.
+
+## Errors
+
+Errors are RFC 7807 problem documents, `Content-Type: application/problem+json`:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "An error occurred while processing your request.",
+  "status": 400,
+  "detail": "Currency must be one of CHF, EUR, USD.",
+  "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00"
+}
+```
+
+| Status | Meaning |
+| --- | --- |
+| `400` | Invalid request — bad amount, unsupported currency, malformed `returnUrl`. |
+| `401` | Missing, malformed, revoked or unknown API key. |
+| `403` | Key lacks the required scope (`detail` names it). |
+| `404` | The resource doesn't exist — or belongs to another merchant. |
+| `429` | Rate limited — back off and retry. |
+
+Include the `traceId` when contacting support about a failed request.
+
+## Rate limits
+
+The API is rate limited per client. On `429`, retry with exponential backoff. Creates are retry-safe when you pass an `idempotencyKey` — see [idempotency](/accept-payments/api-payments#idempotency).
+
+## Conventions
+
+- **JSON in, JSON out**, camelCase field names.
+- **Statuses are lowercase strings** on the wire: `initiated`, `pending`, `confirmed`, `settled`, `failed`, `expired`, `cancelled`.
+- **Crypto amounts are 8-decimal strings** (`"55.48765432"`) — parse as decimals, never floats.
+- **Timestamps** are ISO 8601 with offset.
+- **Pagination** on list endpoints: `page` (1-based) and `pageSize` (1–100, default 20); responses carry `items`, `total`, `page`, `pageSize`.
+- **Ids are prefixed**: intents `pi_…`, payment links `pl_…`, invoices `inv_…`.
+
+## Endpoints
+
+<CardGroup cols={1}>
+  <Card title="POST /api/v1/intents — Create a payment intent" href="/api-reference/create-intent" icon="plus" />
+  <Card title="GET /api/v1/intents/{id} — Retrieve a payment intent" href="/api-reference/get-intent" icon="magnifying-glass" />
+  <Card title="GET /api/v1/intents — List payment intents" href="/api-reference/list-intents" icon="list" />
+</CardGroup>

@@ -1,0 +1,60 @@
+---
+title: "Delivery & retries"
+description: "What counts as delivered, when Qint retries, and how to monitor it."
+icon: "clock-rotate-left"
+---
+
+A delivery **succeeds** when your endpoint answers any **2xx** within the request timeout. Everything else — non-2xx status, connection failure, timeout — schedules a retry.
+
+## The retry schedule
+
+Failed deliveries are retried with increasing backoff after the initial attempt:
+
+| Attempt | Delay after previous failure |
+| --- | --- |
+| 1st retry | 30 seconds |
+| 2nd retry | 2 minutes |
+| 3rd retry | 10 minutes |
+| 4th retry | 30 minutes |
+| 5th retry | 2 hours |
+
+After the final retry fails, the delivery is **dead-lettered**: Qint stops retrying that event to that endpoint. The delivery (with its error) stays visible in the dashboard log.
+
+<Warning>
+A dead-lettered event is not re-sent automatically. If an endpoint was down
+long enough to dead-letter events, reconcile by fetching current state —
+`GET /api/v1/intents/{id}` (or [list intents](/api-reference/list-intents)
+filtered by status) — rather than waiting for webhooks that won't come.
+</Warning>
+
+## Answer fast, work later
+
+Retries make slow handlers expensive: a handler that takes longer than the delivery timeout gets retried even though it "worked", and your processing runs twice. The robust pattern:
+
+1. Verify the signature.
+2. Record `X-Qint-Event-Id` (dedupe).
+3. Return `200`.
+4. Process the event from a queue/worker.
+
+Because retries redeliver **the same event with the same `X-Qint-Event-Id`**, idempotent processing plus event-id dedupe makes the whole pipeline safe under every failure mode.
+
+## The delivery log
+
+Each endpoint's page in the dashboard (**Developers → Webhooks**) shows its recent deliveries — the last 50 — with:
+
+| Column | Meaning |
+| --- | --- |
+| Event type | `payment.status` or `ping`. |
+| Attempts | How many delivery attempts have been made. |
+| Delivered at | Set once your endpoint answered 2xx. |
+| Dead-lettered | Whether Qint gave up on this delivery. |
+| Last error | The most recent failure (HTTP status or connection error). |
+| Next attempt | When the next retry is scheduled, if any. |
+
+Use **Send test event** after any change to your receiver — it's the fastest way to confirm the full path (TLS, routing, signature check, 2xx) still works.
+
+<Note>
+Ordering is not guaranteed — an old retry can arrive after a newer event.
+Never assume the latest webhook you received reflects the latest state;
+reconcile order-sensitive logic via the API.
+</Note>

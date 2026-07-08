@@ -1,0 +1,49 @@
+---
+title: "Webhooks overview"
+description: "Signed HTTP callbacks on every payment status change."
+icon: "bolt"
+---
+
+Webhooks push payment updates to your server the moment they happen — no polling. Every payment intent status transition enqueues a [`payment.status` event](/webhooks/events) to all of your active endpoints, signed so you can prove it came from Qint.
+
+## Create an endpoint
+
+1. In the [dashboard](https://dashboard.qint.ch), go to **Developers → Webhooks → Add endpoint**.
+2. Enter your receiver URL — it must be **`https://`**. You can register up to **5 endpoints** per merchant.
+3. Copy the **signing secret** (`whsec_…`) from the creation response.
+
+<Warning>
+The signing secret is shown **once** — Qint stores it encrypted and cannot
+display it again. If you lose it, delete the endpoint and create a new one
+(you'll get a new secret).
+</Warning>
+
+## Test it
+
+Use **Send test event** on the endpoint's page. It queues a signed event with type `ping` through the same delivery pipeline as real events, so it exercises your signature verification end to end. The delivery log shows whether your server answered 2xx.
+
+## The receiving contract
+
+Your endpoint should:
+
+1. **Verify the signature** — `X-Qint-Signature` is an HMAC-SHA256 of the raw request body with your `whsec_…` secret. See [verifying signatures](/webhooks/verifying-signatures) for working code.
+2. **Deduplicate** on `X-Qint-Event-Id` — retries redeliver the same event with the same id.
+3. **Return 2xx fast** — acknowledge first, process asynchronously. Slow responses risk timeouts, which count as failed deliveries and trigger [retries](/webhooks/delivery-and-retries).
+
+```text Request headers
+POST /your/webhook/path HTTP/1.1
+Content-Type: application/json
+X-Qint-Signature: sha256=5f8c1c1c…
+X-Qint-Event-Id: 6b3a5c1e-93f0-4c62-9a2d-1f0f9d2e8b7a
+```
+
+<Note>
+Don't derive business state from the *order* of webhook arrivals — network
+retries can reorder them. Treat each event as "something changed", verify,
+then reconcile against `GET /api/v1/intents/{id}` if your logic is
+order-sensitive.
+</Note>
+
+## Managing endpoints
+
+From **Developers → Webhooks** you can list endpoints, inspect each one's recent [delivery log](/webhooks/delivery-and-retries#the-delivery-log), send test events, and delete endpoints you no longer need. Deleting an endpoint stops deliveries immediately.

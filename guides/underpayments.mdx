@@ -1,0 +1,44 @@
+---
+title: "Underpayments"
+description: "What happens when a buyer sends less crypto than quoted — and how you stay in control."
+icon: "scale-unbalanced"
+---
+
+Crypto payments are push payments: the buyer types (or scans) an amount and sends it. Occasionally they send too little — a wallet rounds down, a fee is deducted en route, or they fat-finger a digit. Qint's underpayment handling keeps those payments from silently failing while leaving the commercial decision where it belongs: with you.
+
+## Tolerance — small shortfalls settle anyway
+
+Each merchant has an underpayment **tolerance of up to 2%** (configured by Qint — contact support to adjust yours). A payment short by no more than the tolerance is treated as paid in full and settles normally. Typical dust-level shortfalls never bother you or the buyer.
+
+## Beyond tolerance — the underpaid flag
+
+When the shortfall exceeds the tolerance, the payment is flagged **underpaid**. Two important properties:
+
+- **It's a flag, not a status.** The intent's status doesn't change on detection — a `pending` payment stays `pending`.
+- **The payment stays payable** while its 15-minute window is open. The buyer can top up by sending the remaining amount to the same deposit address; if the full amount arrives in time, the payment proceeds to settle normally.
+
+You learn about the flag immediately: the [`payment.status` webhook](/webhooks/events#underpayment-fields) is re-emitted with `underpaid: true`, `expectedCryptoAmount` and `receivedCryptoAmount`, and the checkout page shows the buyer what's still owed.
+
+## Expired underpaid — your review queue
+
+If the window closes while the payment is still short, the intent expires **and enters your review queue** in the dashboard. The merchant's Owner and Admin users are notified by email that a payment came up short.
+
+For each queued payment you see the fiat amount, the asset, the expected and received crypto amounts, and the linked invoice or payment link. You decide:
+
+| Decision | Effect |
+| --- | --- |
+| **Accept as paid** | The one sanctioned `expired → settled` transition. Full settlement side effects run: balance credit, `payment.status` webhook (`settled`), receipt email, and a linked invoice flips to **Paid**. |
+| **Decline** | The intent stays `expired`. The resolution (and your optional note) is recorded. |
+
+Each payment is resolved exactly once — a second attempt is rejected. Accepting less money is a commercial call, which is why it's never automatic.
+
+<Note>
+Resolving review items requires the Owner, Admin or Finance role — the same
+policy as [payouts](/guides/payouts).
+</Note>
+
+## What your integration should do
+
+1. **Handle the flag.** On `underpaid: true` for a non-terminal payment, hold fulfilment (the WooCommerce plugin puts the order [on hold](/guides/woocommerce#how-orders-are-updated)).
+2. **Trust `settled`, however it arrives.** An accepted review item emits the same `settled` webhook as a normal payment — one code path fulfils both.
+3. **Treat `expired` + `underpaid` as "pending a human decision"**, not as a hard failure, until the review is resolved.

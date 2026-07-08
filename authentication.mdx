@@ -1,0 +1,72 @@
+---
+title: "Authentication"
+description: "API keys, scopes, and how to keep them safe."
+icon: "key"
+---
+
+The merchant API authenticates every request with a Qint-issued API key. Keys look like `qk_live_` followed by 32 alphanumeric characters, and are created in the dashboard under **Developers → API keys**.
+
+## Sending your key
+
+Use either header — they're equivalent:
+
+<CodeGroup>
+
+```bash Authorization header
+curl https://qint-api.fly.dev/api/v1/intents \
+  -H "Authorization: Bearer qk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```bash X-Api-Key header
+curl https://qint-api.fly.dev/api/v1/intents \
+  -H "X-Api-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+</CodeGroup>
+
+<Warning>
+API keys are **server-side secrets**. Never embed them in a browser, mobile
+app, or public repository — anyone holding the key can create payments as
+your business. All API traffic must use HTTPS.
+</Warning>
+
+## Scopes
+
+Each key carries one or both scopes, chosen at creation:
+
+| Scope | Grants |
+| --- | --- |
+| **Write** | `POST /api/v1/intents` — creating payment intents |
+| **Read** | `GET /api/v1/intents/{id}` and `GET /api/v1/intents` — reading payments |
+
+A request outside the key's scopes fails with `403` and a problem document such as `"This API key lacks the Write scope."` Grant only what an integration needs — a reporting job needs Read, not Write.
+
+## Keys are shown once
+
+The full key appears **only in the creation response**. Qint stores a SHA-256 hash; the key list shows just a prefix (e.g. `qk_live_x7k2`) plus label, scopes and last-used time. If a key is lost, it cannot be recovered — create a new one.
+
+## Rotating keys
+
+Rotation is zero-downtime because multiple keys can be active at once:
+
+1. Create a new key with the same scopes.
+2. Deploy the new key to your systems.
+3. Revoke the old key in the dashboard (**Developers → API keys → Revoke**). Revocation is immediate — requests with a revoked key get `401`.
+
+Rotate on a schedule that fits your policy, and immediately if you suspect a leak. The **last used** timestamp in the dashboard helps you confirm the old key has gone quiet before revoking.
+
+## Other requirements
+
+- Your merchant account must be **approved** — keys of unapproved merchants are rejected.
+- The API is **rate limited**; a `429` response means back off and retry. Pair retries with [idempotency keys](/accept-payments/api-payments#idempotency) so they're always safe.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="API reference" icon="book" href="/api-reference/introduction">
+    Endpoints, schemas, and error shapes.
+  </Card>
+  <Card title="Webhook signatures" icon="shield-check" href="/webhooks/verifying-signatures">
+    Webhooks use a separate `whsec_…` secret — don't mix them up.
+  </Card>
+</CardGroup>

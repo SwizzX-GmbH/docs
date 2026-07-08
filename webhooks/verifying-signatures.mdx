@@ -1,0 +1,187 @@
+---
+title: "Verifying signatures"
+description: "Prove a webhook came from Qint before trusting a byte of it."
+icon: "shield-check"
+---
+
+Every delivery is signed. The `X-Qint-Signature` header carries:
+
+```text
+X-Qint-Signature: sha256=<hex HMAC-SHA256 of the raw request body, keyed with your whsec_… secret>
+```
+
+To verify: compute HMAC-SHA256 over the **raw request body** using your endpoint's signing secret, hex-encode it, prefix `sha256=`, and compare against the header with a **constant-time comparison**. Reject the request if they differ.
+
+<Warning>
+Two classic mistakes break verification:
+
+1. **Re-serialized JSON.** Frameworks love to parse the body before you see
+   it. `JSON.stringify(req.body)` is *not* the raw body — key order and
+   whitespace change the bytes. Always verify against the exact bytes
+   received.
+2. **`==` comparison.** String equality short-circuits on the first
+   mismatching byte, leaking timing information. Use your platform's
+   constant-time comparison.
+</Warning>
+
+## Working examples
+
+Each of these verifies the signature, dedupes on `X-Qint-Event-Id`, and acknowledges before doing real work.
+
+<CodeGroup>
+
+```javascript Node.js (Express)
+const crypto = require("node:crypto");
+const express = require("express");
+
+const app = express();
+const SECRET = process.env.QINT_WEBHOOK_SECRET; // whsec_…
+
+// express.raw is essential: verification needs the exact bytes.
+app.post(
+  "/qint/webhook",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const header = req.get("X-Qint-Signature") ?? "";
+    const expected =
+      "sha256=" +
+      crypto.createHmac("sha256", SECRET).update(req.body).digest("hex");
+
+    const a = Buffer.from(header);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      return res.status(401).send("invalid signature");
+    }
+
+    const eventId = req.get("X-Qint-Event-Id");
+    // TODO: if you've already processed eventId, just return 200.
+
+    const event = JSON.parse(req.body.toString("utf8"));
+
+    res.status(200).send("ok"); // acknowledge fast…
+    setImmediate(() => handleEvent(event)); // …process async
+  }
+);
+
+function handleEvent(event) {
+  if (event.type === "payment.status" && event.status === "settled") {
+    // fulfil the order for event.intentId
+  }
+}
+
+app.listen(3000);
+```
+
+```php PHP
+<?php
+$secret  = getenv('QINT_WEBHOOK_SECRET'); // whsec_…
+$payload = file_get_contents('php://input'); // raw body
+$header  = $_SERVER['HTTP_X_QINT_SIGNATURE'] ?? '';
+$eventId = $_SERVER['HTTP_X_QINT_EVENT_ID'] ?? '';
+
+$expected = 'sha256=' . hash_hmac('sha256', $payload, $secret);
+
+if (!hash_equals($expected, $header)) { // constant-time compare
+    http_response_code(401);
+    exit('invalid signature');
+}
+
+// TODO: if $eventId was already processed, respond 200 and stop.
+
+http_response_code(200);
+echo 'ok';
+if (function_exists('fastcgi_finish_request')) {
+    fastcgi_finish_request(); // flush the 200 before slow work
+}
+
+$event = json_decode($payload, true);
+if (($event['type'] ?? '') === 'payment.status' && ($event['status'] ?? '') === 'settled') {
+    // fulfil the order for $event['intentId']
+}
+```
+
+```python Python (Flask)
+import hashlib
+import hmac
+import os
+
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+SECRET = os.environ["QINT_WEBHOOK_SECRET"].encode()  # whsec_…
+
+
+@app.post("/qint/webhook")
+def qint_webhook():
+    payload = request.get_data()  # raw bytes — never re-serialize
+    header = request.headers.get("X-Qint-Signature", "")
+    expected = (
+        "sha256=" + hmac.new(SECRET, payload, hashlib.sha256).hexdigest()
+    )
+
+    if not hmac.compare_digest(expected, header):  # constant-time
+        abort(401)
+
+    event_id = request.headers.get("X-Qint-Event-Id")
+    # TODO: if event_id was already processed, return 200 immediately.
+
+    event = request.get_json()
+    # Hand off to a queue/worker; keep this handler fast.
+    if event.get("type") == "payment.status" and event.get("status") == "settled":
+        pass  # enqueue fulfilment for event["intentId"]
+
+    return "ok", 200
+```
+
+```csharp C# (ASP.NET Core)
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+
+var secret = Environment.GetEnvironmentVariable("QINT_WEBHOOK_SECRET")!; // whsec_…
+
+app.MapPost("/qint/webhook", async (HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body, Encoding.UTF8);
+    var payload = await reader.ReadToEndAsync(); // raw body
+
+    using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+    var expected = "sha256=" + Convert.ToHexString(
+        hmac.ComputeHash(Encoding.UTF8.GetBytes(payload))).ToLowerInvariant();
+
+    var header = request.Headers["X-Qint-Signature"].ToString();
+    var a = Encoding.UTF8.GetBytes(expected);
+    var b = Encoding.UTF8.GetBytes(header);
+    if (a.Length != b.Length || !CryptographicOperations.FixedTimeEquals(a, b))
+        return Results.Unauthorized();
+
+    var eventId = request.Headers["X-Qint-Event-Id"].ToString();
+    // TODO: if eventId was already processed, return Results.Ok() now.
+
+    var evt = JsonDocument.Parse(payload).RootElement;
+    if (evt.GetProperty("type").GetString() == "payment.status" &&
+        evt.GetProperty("status").GetString() == "settled")
+    {
+        // enqueue fulfilment for evt.GetProperty("intentId").GetString()
+    }
+
+    return Results.Ok(); // acknowledge fast
+});
+
+app.Run();
+```
+
+</CodeGroup>
+
+## Verify your verifier
+
+Use the dashboard's **Send test event** button ([overview](/webhooks/overview#test-it)) — it delivers a signed `ping` event through the production pipeline. If your handler accepts it (2xx in the delivery log) and rejects a request with a tampered body (401), you're done.
+
+<Tip>
+The webhook signing secret (`whsec_…`) and your API key (`qk_live_…`) are
+different credentials with different jobs. Never use one where the other
+belongs.
+</Tip>

@@ -1,0 +1,47 @@
+---
+title: "Payment links"
+description: "A reusable checkout URL you create in the dashboard — no code."
+icon: "link"
+---
+
+A payment link is a fixed-amount checkout page you create once and share anywhere: email, chat, an invoice PDF, a QR code on the counter. Every buyer who opens it goes through the same hosted checkout as an API payment.
+
+## Create a link
+
+1. In the [dashboard](https://dashboard.qint.ch), go to **Payment links → Create link**.
+2. Set a **title** (what the buyer sees, e.g. "Consulting invoice"), an **amount**, and a **currency** (CHF, EUR or USD).
+3. Share the link's URL.
+
+Your merchant account must be approved before links can be created.
+
+## URL anatomy
+
+```text
+https://checkout.qint.ch/pay/pl_x7k2m9p4q1w8
+└──────────┬─────────┘     └──────┬───────┘
+   hosted checkout            link id (pl_…)
+```
+
+The `/pay/{id}` route on the hosted checkout resolves all three payable objects by their id prefix: payment links (`pl_…`), invoices (`inv_…`), and API-created payment intents (`pi_…`).
+
+## What the buyer sees
+
+Opening the link shows the title, amount, your business name and branding, and a grid of the [assets and networks you accept](/accept-payments/assets-and-networks) with live indicative crypto amounts. When the buyer starts paying, a payment intent is created with a **15-minute window**; picking an asset locks the exact crypto amount and shows a deposit address.
+
+<Note>
+Payment links are **reusable** — each buyer session creates its own payment
+intent against the link. Use them for donations, flat-fee services, or
+anything many customers pay the same amount for. For one-off billing with
+line items, use [invoices](/accept-payments/invoices); for per-order
+amounts, use the [API](/accept-payments/api-payments).
+</Note>
+
+## Link lifecycle
+
+| Status | Meaning |
+| --- | --- |
+| **Active** | The link resolves and accepts payments. |
+| **Paused** | Temporarily disabled — the checkout returns "not found" until you re-activate it. |
+| **Archived** | Retired for good. Past payments keep referencing the link. |
+
+Change a link's status from its page in the dashboard (Owner/Admin only). Payments made through a link appear in **Payments** like any other, with the link id attached — and they trigger the same [`payment.status` webhooks](/webhooks/events) with `paymentLinkId` set.

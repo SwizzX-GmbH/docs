@@ -1,0 +1,442 @@
+openapi: 3.1.0
+info:
+  title: Qint Merchant API
+  version: "1.0"
+  description: |
+    The Qint merchant API is a server-to-server API for creating and reading
+    **payment intents**. You create an intent, redirect the buyer to the returned
+    `checkoutUrl` (Qint's hosted checkout at `checkout.qint.ch`), and get notified
+    of status changes via [webhooks](https://docs.qint.ch/webhooks/overview).
+
+    ### Authentication
+    Every request is authenticated with a Qint-issued API key
+    (`qk_live_` + 32 alphanumeric characters), sent either as
+    `Authorization: Bearer qk_live_…` or as an `X-Api-Key: qk_live_…` header.
+    Keys carry **Read** and/or **Write** scopes: creating intents requires
+    Write, reading them requires Read. The merchant account must be approved
+    before the API accepts requests.
+
+    ### Errors
+    Errors are returned as RFC 7807 `application/problem+json` documents with
+    `title`, `status` and `detail` fields.
+
+    ### Rate limits
+    The merchant API is rate limited. When a limit is exceeded the API responds
+    with `429 Too Many Requests` — back off and retry. Intent creation is
+    retry-safe when you pass an `idempotencyKey`.
+  contact:
+    name: Qint support
+    email: support@qint.ch
+    url: https://qint.ch
+servers:
+  - url: https://qint-api.fly.dev
+    description: Production (api.qint.ch coming soon)
+security:
+  - bearerAuth: []
+  - apiKeyHeader: []
+tags:
+  - name: Payment intents
+    description: Create standalone payments and read their status.
+paths:
+  /api/v1/intents:
+    post:
+      operationId: createIntent
+      tags: [Payment intents]
+      summary: Create a payment intent
+      description: |
+        Creates a standalone payment intent and returns a `checkoutUrl` to send
+        the buyer to. The payment window is 15 minutes from creation
+        (`expiresAt`).
+
+        Requires the **Write** scope.
+
+        **Idempotency** — pass an `idempotencyKey` (unique per merchant, e.g.
+        your order id). Retrying the same request returns the original intent
+        with `200 OK` instead of creating a duplicate (`201 Created`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIntentRequest"
+            examples:
+              minimal:
+                summary: Minimal request
+                value:
+                  amount: 49.9
+                  currency: CHF
+                  title: "Order #1001"
+                  idempotencyKey: order-1001
+              withReturnUrl:
+                summary: With a return URL (e.g. a shop integration)
+                value:
+                  amount: 49.9
+                  currency: CHF
+                  title: "Order #1001"
+                  idempotencyKey: order-1001
+                  returnUrl: https://shop.example.ch/checkout/order-received/1001
+      responses:
+        "201":
+          description: Intent created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentIntent"
+        "200":
+          description: >
+            Idempotent replay — an intent with this `idempotencyKey` already
+            exists for your merchant; the original intent is returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentIntent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The API key lacks the Write scope.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                title: An error occurred while processing your request.
+                status: 403
+                detail: This API key lacks the Write scope.
+        "404":
+          description: Merchant not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    get:
+      operationId: listIntents
+      tags: [Payment intents]
+      summary: List payment intents
+      description: |
+        Returns your merchant's payment intents, newest first, as a paged list.
+        Optionally filter by status.
+
+        Requires the **Read** scope.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: >
+            Only return intents with this status. Values are matched
+            case-insensitively (`settled` and `Settled` both work).
+          schema:
+            $ref: "#/components/schemas/IntentStatus"
+        - name: page
+          in: query
+          required: false
+          description: 1-based page number. Values below 1 are clamped to 1.
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          required: false
+          description: Items per page. Clamped to 1–100.
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: A page of payment intents.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagedIntents"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The API key lacks the Read scope.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/v1/intents/{id}:
+    get:
+      operationId: getIntent
+      tags: [Payment intents]
+      summary: Retrieve a payment intent
+      description: |
+        Returns a single payment intent by id. The status is as fresh as the
+        hosted checkout's own view — an intent whose payment window has lapsed
+        is reported `expired` immediately.
+
+        Requires the **Read** scope. Intents belonging to other merchants
+        return `404`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The payment intent id (`pi_…`).
+          schema:
+            type: string
+          example: pi_x7k2m9p4q1w8
+      responses:
+        "200":
+          description: The payment intent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentIntent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The API key lacks the Read scope.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No intent with this id exists for your merchant.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >
+        `Authorization: Bearer qk_live_…` — a Qint API key created in the
+        dashboard under Developers → API keys.
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: >
+        Alternative to the Authorization header — send the same `qk_live_…`
+        key as `X-Api-Key`.
+  responses:
+    BadRequest:
+      description: >
+        Invalid request — e.g. a non-positive amount, an unsupported currency
+        (only CHF, EUR and USD are accepted), or a `returnUrl` that is not
+        absolute https or exceeds 500 characters.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            title: An error occurred while processing your request.
+            status: 400
+            detail: Currency must be one of CHF, EUR, USD.
+    Unauthorized:
+      description: Missing, malformed, revoked or unknown API key.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    TooManyRequests:
+      description: Rate limit exceeded — back off and retry.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    IntentStatus:
+      type: string
+      description: |
+        Lifecycle of a payment intent. Transitions follow
+        `initiated → pending → confirmed → settled`, with `failed`, `expired`
+        and `cancelled` branches. Terminal states never change again —
+        except that a merchant may resolve an underpaid, expired payment as
+        accepted from the dashboard review queue, which moves it
+        `expired → settled`.
+      enum:
+        - initiated
+        - pending
+        - confirmed
+        - settled
+        - failed
+        - expired
+        - cancelled
+    CreateIntentRequest:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          description: Amount to charge, in the given fiat currency. Must be positive.
+          examples: [49.9]
+        currency:
+          type: string
+          enum: [CHF, EUR, USD]
+          description: Settlement currency. One of `CHF`, `EUR` or `USD`.
+        title:
+          type: string
+          description: >
+            Shown to the buyer on the hosted checkout (e.g. "Order #1001").
+            When omitted, the checkout falls back to your merchant display
+            name.
+        idempotencyKey:
+          type: string
+          description: >
+            Unique per merchant. Retrying a request with the same key returns
+            the original intent (`200`) instead of creating a duplicate. Use
+            your own order or reference id.
+        returnUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          description: >
+            Absolute **https** URL (max 500 characters). When set, the hosted
+            checkout shows a "Return to merchant" action that navigates back
+            to this URL with `?qint_intent={id}&status={status}` appended.
+      additionalProperties: false
+    PaymentIntent:
+      type: object
+      description: A payment intent as returned by the merchant API.
+      required:
+        [id, status, amount, currency, checkoutUrl, createdAt, expiresAt]
+      properties:
+        id:
+          type: string
+          description: Payment intent id (`pi_…`).
+          examples: [pi_x7k2m9p4q1w8]
+        status:
+          $ref: "#/components/schemas/IntentStatus"
+        amount:
+          type: number
+          description: The fiat amount charged.
+          examples: [49.9]
+        currency:
+          type: string
+          enum: [CHF, EUR, USD]
+          description: The settlement currency.
+        title:
+          type: [string, "null"]
+          description: The title passed at creation, if any.
+        assetSymbol:
+          type: [string, "null"]
+          description: >
+            The crypto asset the buyer selected at checkout (e.g. `USDT`).
+            `null` until the buyer picks one.
+        cryptoAmount:
+          type: [string, "null"]
+          description: >
+            The exact crypto amount the buyer must send, as an 8-decimal-place
+            string (e.g. `"49.90000000"`). `null` until an asset is selected.
+        depositAddress:
+          type: [string, "null"]
+          description: >
+            The deposit address the buyer pays to. `null` until an asset is
+            selected.
+        checkoutUrl:
+          type: string
+          format: uri
+          description: >
+            The hosted checkout URL for this intent — redirect the buyer here.
+          examples: [https://checkout.qint.ch/pay/pi_x7k2m9p4q1w8]
+        returnUrl:
+          type: [string, "null"]
+          format: uri
+          description: The `returnUrl` passed at creation, if any.
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          description: >
+            End of the payment window — 15 minutes after creation. An unpaid
+            intent is `expired` after this instant.
+        confirmedAt:
+          type: [string, "null"]
+          format: date-time
+          description: When the deposit was confirmed on-chain, if it was.
+        settledAt:
+          type: [string, "null"]
+          format: date-time
+          description: When the payment settled, if it did.
+      example:
+        id: pi_x7k2m9p4q1w8
+        status: initiated
+        amount: 49.9
+        currency: CHF
+        title: "Order #1001"
+        assetSymbol: null
+        cryptoAmount: null
+        depositAddress: null
+        checkoutUrl: https://checkout.qint.ch/pay/pi_x7k2m9p4q1w8
+        returnUrl: https://shop.example.ch/checkout/order-received/1001
+        createdAt: "2026-07-08T09:15:00+00:00"
+        expiresAt: "2026-07-08T09:30:00+00:00"
+        confirmedAt: null
+        settledAt: null
+    PagedIntents:
+      type: object
+      required: [items, total, page, pageSize]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentIntent"
+        total:
+          type: integer
+          description: Total number of intents matching the filter.
+        page:
+          type: integer
+          description: The 1-based page number that was returned.
+        pageSize:
+          type: integer
+          description: The page size that was applied (1–100).
+      example:
+        items:
+          - id: pi_x7k2m9p4q1w8
+            status: settled
+            amount: 49.9
+            currency: CHF
+            title: "Order #1001"
+            assetSymbol: USDT
+            cryptoAmount: "55.48765432"
+            depositAddress: "TX8k…"
+            checkoutUrl: https://checkout.qint.ch/pay/pi_x7k2m9p4q1w8
+            returnUrl: null
+            createdAt: "2026-07-08T09:15:00+00:00"
+            expiresAt: "2026-07-08T09:30:00+00:00"
+            confirmedAt: "2026-07-08T09:21:12+00:00"
+            settledAt: "2026-07-08T09:24:03+00:00"
+        total: 1
+        page: 1
+        pageSize: 20
+    Problem:
+      type: object
+      description: RFC 7807 problem details (`application/problem+json`).
+      properties:
+        type:
+          type: string
+          description: A URI reference identifying the problem type.
+        title:
+          type: string
+          description: Short human-readable summary.
+        status:
+          type: integer
+          description: The HTTP status code.
+        detail:
+          type: string
+          description: Human-readable explanation of this occurrence.
+        traceId:
+          type: string
+          description: Request correlation id — include it in support requests.
+      example:
+        type: https://tools.ietf.org/html/rfc9110#section-15.5.1
+        title: An error occurred while processing your request.
+        status: 400
+        detail: Currency must be one of CHF, EUR, USD.
+        traceId: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00
