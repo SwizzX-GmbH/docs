@@ -84,3 +84,14 @@ Emitted when you press **Send test event** in the dashboard. It travels the same
     The retry schedule and the delivery log.
   </Card>
 </CardGroup>
+
+## Excess, late deposits and destination memos
+
+`overpaid` is an informational flag on a settled payment; it does not create another
+payment status. Late deposits can require merchant review after expiry. Do not infer
+a successful payment from the presence of a deposit alone: use the API status and
+review outcome. Refunds of excess are handled with the execution partner, not by
+assuming a webhook initiates a refund.
+
+For XRP and XLM, display the checkout's destination memo/tag as well as its address.
+An address alone may not identify the intended payment. Treat memo values as strings.
