@@ -23,14 +23,15 @@ info:
     ### Rate limits
     The merchant API is rate limited. When a limit is exceeded the API responds
     with `429 Too Many Requests` — back off and retry. Intent creation is
-    retry-safe when you pass an `idempotencyKey`.
+    retry-safe: the required `idempotencyKey` makes a retried request return
+    the original intent instead of creating a duplicate.
   contact:
     name: Qint support
     email: support@qint.ch
     url: https://qint.ch
 servers:
-  - url: https://qint-api.fly.dev
-    description: Production (api.qint.ch coming soon)
+  - url: https://api.qint.ch
+    description: Production
 security:
   - bearerAuth: []
   - apiKeyHeader: []
@@ -50,9 +51,10 @@ paths:
 
         Requires the **Write** scope.
 
-        **Idempotency** — pass an `idempotencyKey` (unique per merchant, e.g.
-        your order id). Retrying the same request returns the original intent
-        with `200 OK` instead of creating a duplicate (`201 Created`).
+        **Idempotency** — an `idempotencyKey` (unique per merchant, e.g.
+        your order id) is **required**. Retrying the same request returns the
+        original intent with `200 OK` instead of creating a duplicate
+        (`201 Created`).
       requestBody:
         required: true
         content:
@@ -268,7 +270,7 @@ components:
         - cancelled
     CreateIntentRequest:
       type: object
-      required: [amount, currency]
+      required: [amount, currency, idempotencyKey]
       properties:
         amount:
           type: number
@@ -287,9 +289,10 @@ components:
         idempotencyKey:
           type: string
           description: >
-            Unique per merchant. Retrying a request with the same key returns
-            the original intent (`200`) instead of creating a duplicate. Use
-            your own order or reference id.
+            **Required.** Unique per merchant (use your own order or reference
+            id). Retrying a request with the same key returns the original
+            intent (`200`) instead of creating a duplicate (`201`). Requests
+            without an `idempotencyKey` are rejected with `400`.
         returnUrl:
           type: string
           format: uri

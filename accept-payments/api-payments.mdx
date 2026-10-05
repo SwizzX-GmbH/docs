@@ -13,7 +13,7 @@ You'll need an [API key](/authentication) with the **Write** scope (plus **Read*
 <CodeGroup>
 
 ```bash cURL
-curl -s -X POST https://qint-api.fly.dev/api/v1/intents \
+curl -s -X POST https://api.qint.ch/api/v1/intents \
   -H "Authorization: Bearer $QINT_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -26,7 +26,7 @@ curl -s -X POST https://qint-api.fly.dev/api/v1/intents \
 ```
 
 ```javascript Node.js
-const res = await fetch("https://qint-api.fly.dev/api/v1/intents", {
+const res = await fetch("https://api.qint.ch/api/v1/intents", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.QINT_API_KEY}`,
@@ -44,7 +44,7 @@ const intent = await res.json(); // res.status: 201 new, 200 idempotent replay
 ```
 
 ```php PHP
-$ch = curl_init('https://qint-api.fly.dev/api/v1/intents');
+$ch = curl_init('https://api.qint.ch/api/v1/intents');
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST => true,
@@ -67,7 +67,7 @@ $intent = json_decode(curl_exec($ch), true);
 import os, requests
 
 res = requests.post(
-    "https://qint-api.fly.dev/api/v1/intents",
+    "https://api.qint.ch/api/v1/intents",
     headers={"Authorization": f"Bearer {os.environ['QINT_API_KEY']}"},
     json={
         "amount": 49.90,
@@ -108,7 +108,7 @@ Field rules ([full reference](/api-reference/create-intent)):
 | `amount` | yes | Positive number, in the fiat currency. |
 | `currency` | yes | `CHF`, `EUR` or `USD` — nothing else. |
 | `title` | no | Shown on the checkout; falls back to your merchant display name. |
-| `idempotencyKey` | no, but recommended | Unique per merchant — see [idempotency](#idempotency). |
+| `idempotencyKey` | yes | Unique per merchant — see [idempotency](#idempotency). |
 | `returnUrl` | no | Absolute **https** URL, max 500 chars — see [return URL](#the-return-url). |
 
 ## Step 2 — Redirect the buyer
@@ -122,7 +122,7 @@ Send the buyer to `checkoutUrl`. The hosted checkout shows your title, amount an
 **Reconcile with GET.** Whether as a fallback for a missed webhook, on the buyer's return to your site, or in a periodic sweep:
 
 ```bash
-curl -s https://qint-api.fly.dev/api/v1/intents/pi_x7k2m9p4q1w8 \
+curl -s https://api.qint.ch/api/v1/intents/pi_x7k2m9p4q1w8 \
   -H "Authorization: Bearer $QINT_API_KEY"
 ```
 
@@ -150,10 +150,10 @@ Terminal states never change — with one deliberate exception: you can accept a
 
 ## Idempotency
 
-`idempotencyKey` is unique **per merchant**. If a create request is retried with a key you've used before, the API returns the **original intent** with `200 OK` instead of minting a duplicate (a fresh create returns `201 Created`).
+`idempotencyKey` is **required** and unique **per merchant**. If a create request is retried with a key you've used before, the API returns the **original intent** with `200 OK` instead of minting a duplicate (a fresh create returns `201 Created`). A request without one fails with `400`.
 
 <Tip>
-Always send an idempotency key derived from your own records — your order id
+Derive the idempotency key from your own records — your order id
 is perfect. Then a network timeout is never scary: retry the exact same
 request and you'll get the same intent back.
 </Tip>

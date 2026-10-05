@@ -9,7 +9,7 @@ The Qint merchant API is a small, server-to-server REST API around one resource:
 ## Base URL
 
 ```text
-https://qint-api.fly.dev
+https://api.qint.ch
 ```
 
 All endpoints are versioned under `/api/v1`.
@@ -57,7 +57,7 @@ Include the `traceId` when contacting support about a failed request.
 
 ## Rate limits
 
-The API is rate limited per client. On `429`, retry with exponential backoff. Creates are retry-safe when you pass an `idempotencyKey` — see [idempotency](/accept-payments/api-payments#idempotency).
+The API is rate limited per client. On `429`, retry with exponential backoff. Creates are retry-safe — the required `idempotencyKey` makes a replay return the original intent; see [idempotency](/accept-payments/api-payments#idempotency).
 
 ## Conventions
 
