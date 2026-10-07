@@ -1,6 +1,6 @@
 # Qint developer documentation
 
-Developer docs for [Qint](https://qint.ch) — built with [Mintlify](https://mintlify.com) (`docs.json` format). Will live at **docs.qint.ch**.
+Developer docs for [Qint](https://qint.ch) — built with [Mintlify](https://mintlify.com) (`docs.json` format). Live at **docs.qint.ch**.
 
 ## Local preview
 
@@ -32,23 +32,19 @@ logo/, favicon.svg  Brand assets (light + dark logos)
 
 Editing content = editing the `.mdx` files. Adding a page = create the `.mdx` file **and** list it in `docs.json` under `navigation`. Changing an endpoint = edit `openapi.yaml` (the endpoint pages under `api-reference/` pick it up automatically).
 
-## Publishing to docs.qint.ch (one-time setup, ~10 minutes)
+## Publishing to docs.qint.ch
 
-1. **Sign up at [mintlify.com](https://mintlify.com)** (Start for free) using the
-   SwizzX GmbH GitHub account, which creates your Mintlify dashboard at
-   `dashboard.mintlify.com`.
+This repository is the **only** source of docs.qint.ch. Mintlify builds the
+`main` branch on every push (the "Mintlify Deployment" check on the commit shows
+the result), so merging to `main` is publishing. There is no second copy to keep
+in sync: the earlier private `SwizzX-GmbH/qint-docs` mirror was archived on
+2026-10-08 after its content was folded in here.
 
-2. **Connect the GitHub repo.** Push this folder to
-   `SwizzX-GmbH/qint-docs`, then in the Mintlify dashboard install the
-   **Mintlify GitHub App** and grant it access to that repository
-   (Dashboard → Settings → GitHub App, or the prompt during onboarding).
-   Every push to the default branch now auto-deploys the docs.
+Before merging a change, run `mint dev` locally (see above) and check the page
+renders. Custom domain and the GitHub connection are configured in the Mintlify
+dashboard (deployment `qint-docs`); nothing in this repo needs to change for a
+new page to go live.
 
-3. **Add the custom domain.** Dashboard → Settings → Domain Setup → enter
-   `docs.qint.ch`. Mintlify shows you a **CNAME target** — add that CNAME
-   record for the `docs` subdomain at qint.ch's DNS provider. Once DNS
-   propagates, Mintlify provisions TLS automatically and
-   https://docs.qint.ch is live.
-
-Until step 3 completes, the docs are reachable at the `*.mintlify.app`
-subdomain assigned in the dashboard.
+The internal system overview lives in
+[the qint-api repository](https://github.com/SwizzX-GmbH/qint-api/blob/main/docs/README.md).
+Do not copy internal operational details or credentials into these public docs.
