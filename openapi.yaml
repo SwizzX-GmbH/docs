@@ -367,6 +367,13 @@ components:
           type: [string, "null"]
           format: date-time
           description: When the payment settled, if it did.
+        reversedAt:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            Set when the payment partner reversed the payment after it had
+            settled. `status` stays `settled`; treat a reversed payment as not
+            paid. See the webhook reversal fields.
       example:
         id: pi_x7k2m9p4q1w8
         status: initiated
@@ -382,6 +389,7 @@ components:
         expiresAt: "2026-07-08T09:30:00+00:00"
         confirmedAt: null
         settledAt: null
+        reversedAt: null
     PagedIntents:
       type: object
       required: [items, total, page, pageSize]
@@ -415,6 +423,7 @@ components:
             expiresAt: "2026-07-08T09:30:00+00:00"
             confirmedAt: "2026-07-08T09:21:12+00:00"
             settledAt: "2026-07-08T09:24:03+00:00"
+            reversedAt: null
         total: 1
         page: 1
         pageSize: 20

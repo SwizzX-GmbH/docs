@@ -70,6 +70,36 @@ When the payment partner detects that a buyer sent **less than the quoted amount
 
 What to do with an underpaid event — including the merchant review queue for payments that expire underpaid — is covered in the [underpayments guide](/guides/underpayments).
 
+### Reversal fields
+
+In rare cases the payment partner reverses a payment **after it has settled** (for example an operator cancels the transaction on their side). The intent's status stays `settled` — the crypto did arrive — but the `payment.status` event is re-emitted with two extra fields, and the payment then counts for nothing: it leaves the merchant balance, and an invoice it paid is open again.
+
+```json
+{
+  "type": "payment.status",
+  "intentId": "pi_x7k2m9p4q1w8",
+  "status": "settled",
+  "amount": 49.90,
+  "currency": "CHF",
+  "assetSymbol": "USDT",
+  "invoiceId": null,
+  "paymentLinkId": null,
+  "underpaid": false,
+  "expectedCryptoAmount": "55.48765432",
+  "receivedCryptoAmount": "55.48765432",
+  "reversed": true,
+  "reversedAt": "2026-07-08T09:58:41+00:00",
+  "occurredAt": "2026-07-08T09:58:41+00:00"
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `reversed` | boolean | `true` once the payment has been reversed. A **flag, not a status**: `status` stays `settled`. Treat a reversed payment as **not paid** — undo fulfilment or contact the buyer. |
+| `reversedAt` | string \| null | When the reversal was recorded. `null` on every event before a reversal. |
+
+Every `payment.status` event carries `reversed` (normally `false`) and `reversedAt` (normally `null`). The same two fields are on the intent returned by [`GET /api/v1/intents/{id}`](/api-reference/get-intent).
+
 ## `ping`
 
 Emitted when you press **Send test event** in the dashboard. It travels the same pipeline as real events — same signature scheme, same `X-Qint-Event-Id` header, same retry behavior — with `"type": "ping"` in the payload. Verify it like any event, then return 2xx and ignore it.
