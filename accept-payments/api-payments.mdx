@@ -98,9 +98,20 @@ intent = res.json()  # res.status_code: 201 new, 200 idempotent replay
   "expiresAt": "2026-07-08T09:30:00+00:00",
   "confirmedAt": null,
   "settledAt": null,
-  "reversedAt": null
+  "reversedAt": null,
+  "reversed": false,
+  "underpaid": false,
+  "feeAmount": null,
+  "netAmount": null,
+  "settledAmount": null,
+  "receivedAmount": null,
+  "underpaidBps": null,
+  "creditUsdt": null,
+  "creditRate": null
 }
 ```
+
+Once a payment settles, the same object also tells you what you were credited: `feeAmount` (Qint's fee) and `netAmount` (what reaches your balance), both in `currency`; `creditUsdt` and `creditRate` (the USDT credited and the fiat-per-USDT rate at that moment). If the buyer paid slightly short within your accepted underpayment, `underpaid` is `true`, `receivedAmount` is the fiat amount actually paid and `underpaidBps` how short it was (100 = 1 %); the fee and the net are computed on `receivedAmount`. `reversed` / `reversedAt` are set when the execution partner reversed a settled payment — treat it as not paid.
 
 Field rules ([full reference](/api-reference/create-intent)):
 
