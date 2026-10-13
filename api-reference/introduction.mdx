@@ -47,11 +47,12 @@ Errors are RFC 7807 problem documents, `Content-Type: application/problem+json`:
 
 | Status | Meaning |
 | --- | --- |
-| `400` | Invalid request — bad amount, unsupported currency, malformed `returnUrl`. |
+| `400` | Invalid request — bad amount, unsupported currency, malformed `returnUrl`, or an amount outside the [payment limits](/accept-payments/api-payments#payment-limits) (`code: "amount_out_of_range"`). |
 | `401` | Missing, malformed, revoked or unknown API key. |
 | `403` | Key lacks the required scope (`detail` names it). |
 | `404` | The resource doesn't exist — or belongs to another merchant. |
 | `429` | Rate limited — back off and retry. |
+| `503` | Exchange rate unavailable (`code: "rate_unavailable"`) — retry in a minute. |
 
 Include the `traceId` when contacting support about a failed request.
 

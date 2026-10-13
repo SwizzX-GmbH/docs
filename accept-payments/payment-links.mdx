@@ -14,6 +14,14 @@ A payment link is a fixed-amount checkout page you create once and share anywher
 
 Your merchant account must be approved before links can be created.
 
+## Amount limits
+
+Every payment must be between **CHF 10 and CHF 100'000**. For EUR, USD and GBP links the limit is judged on the CHF equivalent at the current exchange rate. The check runs when you create the link and again when a buyer starts paying, so a link whose amount falls outside the band is refused with an `amount_out_of_range` error and the dashboard shows the message ("Payments must be between CHF 10 and CHF 100'000 (or the equivalent). This amount is CHF 5.40."). If the exchange rate source is briefly unavailable, creation is refused with "Exchange rate unavailable — try again in a minute." rather than guessed.
+
+Qint can agree a different maximum for your merchant account. Ask [support@qint.ch](mailto:support@qint.ch) if your tickets exceed CHF 100'000.
+
+If a link was created before your cap changed and its amount is now outside your allowed range, the buyer sees "This payment is outside the merchant's allowed range — please contact the merchant." instead of the asset grid. Archive the link and create a new one at an amount within your range.
+
 ## URL anatomy
 
 ```text

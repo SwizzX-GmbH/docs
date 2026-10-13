@@ -93,7 +93,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/PaymentIntent"
         "400":
-          $ref: "#/components/responses/BadRequest"
+          description: >
+            Invalid request — including `code: "amount_out_of_range"` when the
+            amount is outside the allowed range (CHF 10 to CHF 100'000 or the
+            equivalent, or your agreed cap). `minChf`, `maxChf` and `amountChf`
+            are returned alongside the problem details.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                title: An error occurred while processing your request.
+                status: 400
+                detail: "Payments must be between CHF 10 and CHF 100'000 (or the equivalent). This amount is CHF 5.40."
+                code: amount_out_of_range
+                minChf: 10
+                maxChf: 100000
+                amountChf: 5.4
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -114,6 +130,19 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: >
+            The exchange rate needed to judge a EUR, USD or GBP amount is
+            unavailable. Retry in a minute.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                title: Service Unavailable
+                status: 503
+                detail: "Exchange rate unavailable — try again in a minute."
+                code: rate_unavailable
     get:
       operationId: listIntents
       tags: [Payment intents]
@@ -274,7 +303,7 @@ components:
       properties:
         amount:
           type: number
-          description: Amount to charge, in the given fiat currency. Must be positive.
+          description: Amount to charge, in the given fiat currency. Must be positive and, converted to CHF, between 10 and 100'000 (or your agreed cap).
           examples: [49.9]
         currency:
           type: string
@@ -446,6 +475,18 @@ components:
         traceId:
           type: string
           description: Request correlation id — include it in support requests.
+        code:
+          type: string
+          description: Machine-readable error code, e.g. `amount_out_of_range` or `rate_unavailable`.
+        minChf:
+          type: number
+          description: Only with `amount_out_of_range` — the minimum payment in CHF.
+        maxChf:
+          type: number
+          description: Only with `amount_out_of_range` — your effective maximum payment in CHF.
+        amountChf:
+          type: number
+          description: Only with `amount_out_of_range` — the CHF equivalent of the submitted amount.
       example:
         type: https://tools.ietf.org/html/rfc9110#section-15.5.1
         title: An error occurred while processing your request.

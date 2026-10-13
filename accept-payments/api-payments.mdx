@@ -106,15 +106,40 @@ Field rules ([full reference](/api-reference/create-intent)):
 
 | Field | Required | Notes |
 | --- | --- | --- |
-| `amount` | yes | Positive number, in the fiat currency. |
+| `amount` | yes | Positive number, in the fiat currency. Must be within the [payment limits](#payment-limits). |
 | `currency` | yes | `CHF`, `EUR`, `USD` or `GBP` — nothing else. |
 | `title` | no | Shown on the checkout; falls back to your merchant display name. |
 | `idempotencyKey` | yes | Unique per merchant — see [idempotency](#idempotency). |
 | `returnUrl` | no | Absolute **https** URL, max 500 chars — see [return URL](#the-return-url). |
 
+## Payment limits
+
+Every payment must be between **CHF 10 and CHF 100'000**. For EUR, USD and GBP the limit is judged on the CHF equivalent at the current exchange rate. Qint can agree a different cap for your merchant account; contact [support@qint.ch](mailto:support@qint.ch) if your tickets exceed CHF 100'000.
+
+The check runs when you create the intent, and again when the buyer starts paying on the hosted checkout. Outside the band, the API answers `400` with `code: "amount_out_of_range"`:
+
+```json Response (400 Bad Request)
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "An error occurred while processing your request.",
+  "status": 400,
+  "detail": "Payments must be between CHF 10 and CHF 100'000 (or the equivalent). This amount is CHF 5.40.",
+  "code": "amount_out_of_range",
+  "minChf": 10,
+  "maxChf": 100000,
+  "amountChf": 5.4
+}
+```
+
+`minChf` and `maxChf` are your effective limits (`maxChf` is your agreed cap if you have one), and `amountChf` is the CHF equivalent of the amount you sent. Do not retry; fix the amount.
+
+If the exchange rate source is unavailable, the API fails closed with `503` and `code: "rate_unavailable"` ("Exchange rate unavailable — try again in a minute."). Retrying after a minute is safe, especially with the same `idempotencyKey`.
+
+If you create an intent and your cap is lowered before the buyer pays, the hosted checkout shows the buyer "This payment is outside the merchant's allowed range — please contact the merchant." (HTTP `409`, `code: "amount_out_of_range"`).
+
 ## Step 2 — Redirect the buyer
 
-Send the buyer to `checkoutUrl`. The hosted checkout shows your title, amount and branding, lets the buyer pick an asset and network, and displays the exact crypto amount and deposit address. The whole attempt lives inside the **15-minute window** that started at creation (`expiresAt`).
+Send the buyer to `checkoutUrl`. The hosted checkout shows your title, amount and branding, lets the buyer pick an asset and network, and displays the exact crypto amount and deposit address. If the amount is outside your allowed range at that moment, the buyer sees "This payment is outside the merchant's allowed range — please contact the merchant." instead. The whole attempt lives inside the **15-minute window** that started at creation (`expiresAt`).
 
 ## Step 3 — Learn the outcome
 

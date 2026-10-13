@@ -30,11 +30,24 @@ Qint invoicing covers the whole loop: draft an invoice with line items, email it
     and emails your customer a "Pay now" link
     (`https://checkout.qint.ch/pay/inv_…`) with the invoice PDF attached.
     Sending again while Open re-sends the email.
+
+    <Note>
+    An invoice total must be between **CHF 10 and CHF 100'000** (or the
+    equivalent in EUR, USD or GBP). Qint checks it when you send, and sending is
+    refused with an `amount_out_of_range` error if the total is outside the
+    band; if the exchange rate source is down you get "Exchange rate
+    unavailable — try again in a minute." and can retry. The check runs again
+    when your customer starts paying. If your invoices regularly exceed
+    CHF 100'000, ask [support@qint.ch](mailto:support@qint.ch) for a custom cap.
+    </Note>
   </Step>
   <Step title="Customer pays on the hosted page">
     The hosted invoice page shows the line items, due date and your branding,
     plus the [asset grid](/accept-payments/assets-and-networks). Paying works
     exactly like any other checkout — a 15-minute payment window per attempt.
+    If a cap change has put the invoice outside your allowed range since it
+    was sent, the buyer sees "This payment is outside the merchant's allowed
+    range — please contact the merchant."
     If the customer reopens the emailed link while a payment attempt is still
     live, the same attempt is resumed rather than stacking a new one.
   </Step>
