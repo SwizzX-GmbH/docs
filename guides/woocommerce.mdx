@@ -4,13 +4,26 @@ description: "Add a \"Pay with crypto\" method to your WooCommerce store with th
 icon: "wordpress"
 ---
 
-The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checkout. Customers are redirected to Qint's hosted checkout; orders update automatically via signed webhooks, with a polling fallback in case a webhook is missed.
+The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checkout. Customers are redirected to Qint's hosted checkout; orders update automatically via [signed webhooks](/webhooks/overview), with a polling fallback in case a webhook is missed.
 
-**Requirements:** WooCommerce 8.x+ on WordPress 6.x, PHP 7.4+, store currency **CHF, EUR or USD**, and a Qint merchant account that's been approved. The plugin is HPOS (custom order tables) and block-checkout compatible.
+<Card title="Download qint-payments.zip" icon="download" href="https://qint.ch/downloads/qint-payments.zip">
+  Current version 1.0.1 — a standard WordPress plugin package, installed through WP Admin.
+</Card>
+
+**Requirements**
+
+| Component | Requirement |
+| --- | --- |
+| WooCommerce | 8.0 – 10.x (classic and block checkout, with or without HPOS) |
+| WordPress | 6.0+ |
+| PHP | 7.4+ |
+| Store currency | **CHF, EUR or USD** |
+| Qint account | An [approved](/guides/going-live) merchant account on [dashboard.qint.ch](https://dashboard.qint.ch) |
+| Site | Reachable over **HTTPS** from the public internet (for webhooks) |
 
 <Steps>
   <Step title="Install the plugin">
-    Get `qint-payments.zip`, then in WP Admin go to
+    Download [`qint-payments.zip`](https://qint.ch/downloads/qint-payments.zip), then in WP Admin go to
     **Plugins → Add New → Upload Plugin**, choose the zip, and **Activate**.
     WooCommerce must already be active.
   </Step>
@@ -34,8 +47,8 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
 
     | Notice | Meaning |
     | --- | --- |
-    | Green | Key verified — you're connected. |
-    | Red, mentions 401 | The key is wrong or revoked. |
+    | Green | Key verified (Read scope). The Write scope is exercised by the first checkout. |
+    | Red, mentions 401 | The key is wrong or revoked, or the merchant account is not approved yet. |
     | Red, mentions scopes | Recreate the key with **Read + Write**. |
 
     <Note>
@@ -55,11 +68,12 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
     gateway settings.)
 
     1. Qint dashboard → **Developers → Webhooks → Add endpoint** → paste that URL.
-    2. Copy the **signing secret** shown on creation — shown **only once**.
+    2. Copy the **signing secret** (`whsec_…`) shown on creation — shown **only once**.
     3. Paste it into the gateway's **Webhook signing secret** field and save.
-    4. Press **Send test event** in the dashboard — the delivery should show
-       as delivered (HTTP 200). A 401 means the secret in WooCommerce doesn't
-       match.
+    4. Press **Send test event** in the dashboard. The delivery should show
+       as delivered (HTTP 200), and **WooCommerce → Status → Logs →
+       `qint-payments`** shows "Webhook test event (ping) received and
+       verified". A 401 means the secret in WooCommerce doesn't match.
 
     For webhooks to work:
 
@@ -77,21 +91,72 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
 | Qint intent status | WooCommerce order |
 | --- | --- |
 | `settled` | Payment complete (processing/completed) + note with asset & amount |
+| `settled` + `reversed: true` | **On hold** + note "payment REVERSED" — never counts as paid |
 | `confirmed` / `pending` / `initiated` | Order note only |
 | `failed` | Failed |
 | `expired` / `cancelled` | Cancelled (only if the order was still pending) |
-| `underpaid = true` (non-terminal) | On hold + note "partial payment received — awaiting decision" |
+| `underpaid: true` (non-terminal) | On hold + note "partial payment received — awaiting decision" |
 
-Webhooks are the primary mechanism. As a fallback, when the customer lands on the order-received (thank-you) page or the order-pay page and the order is still pending/on-hold, the plugin polls `GET /intents/{id}` once (throttled to one call per 30 s) and applies the same mapping.
+Webhooks are the primary mechanism: every [`payment.status` event](/webhooks/events) is verified against the signing secret, deduplicated on `X-Qint-Event-Id`, then applied to the order. Because [deliveries are not ordered](/webhooks/delivery-and-retries), the plugin ignores a live status that arrives after a terminal one and any event whose `occurredAt` is older than the last one it applied.
 
-The admin order screen shows a **Qint payment** box with the intent id, cached status and a dashboard link; the cache self-refreshes when older than 2 minutes while payment is pending.
+As a fallback, when the customer lands on the order-received (thank-you) page, on the order-pay page, or comes back from the hosted checkout with `?qint_intent=…` in the URL, and the order is still pending/on-hold, the plugin polls [`GET /api/v1/intents/{id}`](/api-reference/get-intent) once (throttled to one call per 30 s) and applies the same mapping.
+
+The admin order screen shows a **Qint payment** box with the intent id, cached status, underpaid/reversed flags and a dashboard link; the cache self-refreshes when older than 2 minutes while payment is pending.
 
 <Tip>
-An "on hold" order means the customer underpaid. Decide in the Qint
-dashboard's review queue whether to accept the lesser amount or decline —
-see [underpayments](/guides/underpayments).
+An "on hold" order means either the customer underpaid — decide in the Qint
+dashboard's review queue whether to accept the lesser amount or decline, see
+[underpayments](/guides/underpayments) — or, if the note says **REVERSED**,
+that a settled payment was reversed by the payment partner: do not fulfil,
+and contact the buyer.
 </Tip>
+
+## What the plugin sends and stores
+
+- Intents are created with `POST /api/v1/intents` using `amount` (order total, 2 decimals), `currency`, a `title` of the form `Order #1001 — Your Shop` and an order-derived `idempotencyKey` (`woo-{site}-{order id}`), so a double-click or a retried checkout never creates two intents. The order-received page is passed as `returnUrl` when the site runs on HTTPS.
+- The intent id (`pi_…`), checkout URL and last known status are stored as order meta; the intent id is also set as the order's transaction id on settlement.
+- Nothing is loaded from third-party domains in the storefront or admin, and no tracking is added.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="The payment method doesn't show at checkout">
+    Check, in this order: the gateway is enabled; an API key is saved; the
+    store currency is CHF, EUR or USD; the cart total is above zero. On the
+    block checkout, hard-refresh the page after enabling the gateway.
+  </Accordion>
+  <Accordion title="Customers see “We could not start the crypto payment”">
+    The intent creation failed. Open **WooCommerce → Status → Logs →
+    `qint-payments`**: a 401 means the key is invalid or the merchant is not
+    approved; a 403 means the key lacks the **Write** scope; a 429 means the
+    API rate limit was hit — it clears by itself.
+  </Accordion>
+  <Accordion title="Orders stay “Pending payment” after the customer paid">
+    Webhooks are not reaching the site. In the dashboard's **Developers →
+    Webhooks** delivery log check the last error: a 401 means the signing
+    secret in WooCommerce doesn't match the endpoint's; a 404 or 403 usually
+    means a security plugin, WAF or "Plain" permalinks block
+    `/wp-json/qint/v1/webhook`; a connection error means the site isn't
+    publicly reachable over HTTPS. Meanwhile, opening the order-received page
+    (or the admin order screen) polls the API and reconciles the order.
+  </Accordion>
+  <Accordion title="The order is “On hold”">
+    Either the buyer underpaid (see [underpayments](/guides/underpayments))
+    or a settled payment was reversed — the order note says which. Decide in
+    the Qint dashboard; the plugin never completes a reversed payment.
+  </Accordion>
+  <Accordion title="Where are the logs?">
+    **WooCommerce → Status → Logs**, source `qint-payments`. Every rejected
+    webhook, failed API call and test ping is recorded there.
+  </Accordion>
+</AccordionGroup>
 
 ## Uninstall
 
 Deleting the plugin from the Plugins screen removes its settings and transients. Order meta (intent ids, statuses) is preserved as part of your order history.
+
+## Changelog
+
+**1.0.1** — Handles payments reversed after settlement (order on hold, never completed); polling no longer clears the underpaid flag; stale/out-of-order webhook deliveries are ignored; intents are reused only while amount and currency still match the order; reconciles on return from the hosted checkout; test pings are logged.
+
+**1.0.0** — Initial release: hosted-checkout redirect gateway, signed webhook receiver, order-received polling fallback, admin order box, block checkout support.
