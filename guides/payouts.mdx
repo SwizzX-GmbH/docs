@@ -4,22 +4,22 @@ description: "Balances, the holding period, and getting your money out."
 icon: "building-columns"
 ---
 
-Settled payments accumulate as fiat balances — one per currency — which you pay out manually or on a schedule. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
+Settled payments accumulate in one balance held in **USDT**, which you pay out manually or on a schedule in CHF, EUR or USD. The dashboard shows the balance in the currency you choose. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
 
 ## Balances
 
-Every settled payment credits your balance in its currency. Each balance splits in two:
+Your balance is kept in USDT. When a payment settles, the invoiced amount minus Qint's fee is converted into USDT at the market rate of that moment and credited; the payment's detail view and the CSV export show the USDT credited and the rate used. The dashboard displays the balance in your **display currency** (CHF, EUR or USD, chosen under Settings → Payouts) as a live estimate next to the exact USDT figure. The balance splits in two:
 
 | Bucket | Meaning |
 | --- | --- |
 | **Pending** | Funds from payments settled within the holding period. Not yet withdrawable. |
 | **Available** | Funds past the holding period, minus everything reserved by non-cancelled payouts. Withdrawable. |
 
-The **holding period** is 1–3 days (default 2), set on your account by Qint. Requested and scheduled payouts reserve their amount from the available balance immediately — you can never request more than is available.
+The **holding period** is 1–3 days (default 2), set on your account by Qint. Requested and scheduled payouts reserve the USDT they need from the available balance immediately — you can never request more than is available.
 
 ## Manual payouts
 
-**Dashboard → Payouts → Request payout.** Choose the type, amount, currency, and an optional note. Requires the Owner, Admin or Finance role.
+**Dashboard → Payouts → Withdraw funds.** Choose bank transfer, the payout currency (CHF, EUR or USD), the amount in that currency, and an optional note. The dialog shows the live market rate and the USDT that will be sold; the rate is frozen on the payout when you request it, and there is no conversion fee. Requires the Owner, Admin or Finance role.
 
 | Type | What it means |
 | --- | --- |
@@ -56,11 +56,11 @@ Prefer a standing sweep? **Dashboard → Payout settings** offers:
 | Weekly | Mondays |
 | Monthly | The 1st of the month |
 
-When due, Qint automatically creates a **Bank** payout of the full available balance per currency — provided it's at least **10.00** in that currency and, for the payout types with a minimum (see [Fees](#fees)), worth at least the equivalent of **CHF 5'000**. Scheduled payouts never pay the early-payout fee: the balance simply accumulates until it reaches the threshold. You can scope the schedule to a single currency or let it sweep all of them. Configuring schedules requires the Owner or Admin role.
+When due, Qint automatically creates one **Bank** payout of the full available balance, converted into your schedule currency (or your bank currency when none is set) — provided it's at least **10.00** in that currency and, for the payout routes with a minimum (see [Fees](#fees)), worth at least the equivalent of **CHF 5'000**. Scheduled payouts never pay the early-payout fee: the balance simply accumulates until it reaches the threshold. Configuring schedules requires the Owner or Admin role.
 
 ## Fees
 
-Qint's service fee is a small **conversion spread** applied when crypto is converted to your settlement currency — there are no fee lines on invoices or checkout. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.
+Qint's service fee is a small **conversion spread** taken when a payment is credited to your balance — there are no fee lines on invoices or checkout, and converting your balance to CHF, EUR or USD at payout carries no additional fee. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.
 
 ### Payout fees
 
