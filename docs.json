@@ -89,6 +89,10 @@
   "navbar": {
     "links": [
       {
+        "label": "Terms",
+        "href": "https://qint.ch/terms"
+      },
+      {
         "label": "Support",
         "href": "mailto:support@qint.ch"
       }

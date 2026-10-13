@@ -49,8 +49,25 @@ Prefer a standing sweep? **Dashboard → Payout settings** offers:
 | Weekly | Mondays |
 | Monthly | The 1st of the month |
 
-When due, Qint automatically creates a **Bank** payout of the full available balance per currency — provided it's at least **10.00** in that currency. You can scope the schedule to a single currency or let it sweep all of them. Configuring schedules requires the Owner or Admin role.
+When due, Qint automatically creates a **Bank** payout of the full available balance per currency — provided it's at least **10.00** in that currency and, for the payout types with a minimum (see [Fees](#fees)), worth at least the equivalent of **CHF 5'000**. Scheduled payouts never pay the early-payout fee: the balance simply accumulates until it reaches the threshold. You can scope the schedule to a single currency or let it sweep all of them. Configuring schedules requires the Owner or Admin role.
 
 ## Fees
 
-Qint's fee is a small **conversion spread** applied when crypto is converted to your settlement currency — there are no payout fees and no fee lines on invoices or checkout. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.
+Qint's service fee is a small **conversion spread** applied when crypto is converted to your settlement currency — there are no fee lines on invoices or checkout. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.
+
+### Payout fees
+
+Payout fees apply in addition to the conversion spread and depend on where the money goes. They are the "price sheet" referenced by the [Terms & Conditions](https://qint.ch/terms#fees) (version 2026-10):
+
+| Payout type | Minimum amount | Regular payout fee | Payout below CHF 5'000 |
+| --- | --- | --- | --- |
+| **CHF to a Swiss bank account** | None | None | Not applicable — no payout threshold |
+| **EUR to a Swiss bank account (CH IBAN)** | Equivalent of CHF 5'000 | Free once the minimum is reached | **CHF 25** per early payout, deducted from the payout |
+| **CHF to a foreign bank account** (e.g. Revolut) | Equivalent of CHF 5'000 | Free once the minimum is reached | **CHF 25** per early payout, deducted from the payout |
+| **Any other foreign-currency payout** | Equivalent of CHF 5'000 | Free once the minimum is reached | **CHF 25** per early payout, deducted from the payout |
+
+The route is decided per payout from the payout currency and the country of your registered IBAN. For payout types with a minimum, your balance accumulates until a payout is worth the equivalent of CHF 5'000 (at the current CHF rate) — then it is free. If you need the money earlier, the dashboard shows the fee and the net amount before you confirm; the early-payout fee is deducted from the payout and the **net** amount is transferred. Payout rows and the CSV export carry `fee_amount` and `net_amount`; the requested gross amount is what is reserved from your balance.
+
+<Note>
+Requesting an early payout through the dashboard requires an explicit confirmation of the fee. Scheduled payouts never charge it — they wait for the threshold.
+</Note>
