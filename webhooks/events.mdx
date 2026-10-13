@@ -30,7 +30,7 @@ Sent to every active endpoint on **each status transition** of a payment intent 
 | `intentId` | string | The payment intent (`pi_…`) this event is about. |
 | `status` | string | The intent's status **after** the transition: `initiated`, `pending`, `confirmed`, `settled`, `failed`, `expired` or `cancelled`. |
 | `amount` | number | The fiat amount of the payment. |
-| `currency` | string | `CHF`, `EUR` or `USD`. |
+| `currency` | string | `CHF`, `EUR`, `USD` or `GBP`. |
 | `assetSymbol` | string \| null | The crypto asset the buyer chose, once chosen. |
 | `invoiceId` | string \| null | Set when the payment pays an [invoice](/accept-payments/invoices) (`inv_…`). |
 | `paymentLinkId` | string \| null | Set when the payment came through a [payment link](/accept-payments/payment-links) (`pl_…`). |
@@ -43,7 +43,7 @@ crypto is confirmed on-chain but settlement to fiat hasn't completed.
 
 ### Underpayment fields
 
-When the payment partner detects that a buyer sent **less than the quoted amount**, the `payment.status` event is re-emitted for the intent's current (unchanged) status, carrying three extra fields:
+When the payment partner detects that a buyer sent **less than the quoted amount**, the `payment.status` event is re-emitted for the intent's current (unchanged) status, carrying the underpayment fields:
 
 ```json
 {
@@ -62,9 +62,32 @@ When the payment partner detects that a buyer sent **less than the quoted amount
 }
 ```
 
+A payment short by no more than the merchant's [accepted underpayment](/guides/underpayments) settles with `underpaid: true` — as does an underpaid payment accepted from the review queue — and the `settled` event says how much was actually received:
+
+```json
+{
+  "type": "payment.status",
+  "intentId": "pi_x7k2m9p4q1w8",
+  "status": "settled",
+  "amount": 100.00,
+  "currency": "CHF",
+  "assetSymbol": "USDT",
+  "invoiceId": null,
+  "paymentLinkId": null,
+  "underpaid": true,
+  "receivedAmount": 99.70,
+  "underpaidBps": 30,
+  "expectedCryptoAmount": "111.20000000",
+  "receivedCryptoAmount": "110.86640000",
+  "occurredAt": "2026-07-08T09:24:03+00:00"
+}
+```
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `underpaid` | boolean | `true` when the received amount is short. A **flag, not a status** — the intent's status is unchanged by the detection itself. |
+| `receivedAmount` | number \| null | The fiat amount actually received (in `currency`) — the amount the merchant is credited for, before Qint's fee. `null` unless the payment is underpaid. |
+| `underpaidBps` | integer \| null | The shortfall in basis points of `amount` (`30` = 0.3 %). `null` unless the payment is underpaid. |
 | `expectedCryptoAmount` | string | The quoted crypto amount, as an 8-decimal string. |
 | `receivedCryptoAmount` | string | What actually arrived, as an 8-decimal string. |
 

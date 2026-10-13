@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Qint",
-  "description": "Accept crypto payments. Settle in CHF, EUR or USD.",
+  "description": "Accept crypto payments. Settle in CHF, EUR, USD or GBP.",
   "colors": {
     "primary": "#3D5AFE",
     "light": "#8C9EFF",

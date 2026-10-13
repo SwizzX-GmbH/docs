@@ -4,11 +4,11 @@ description: "Balances, the holding period, and getting your money out."
 icon: "building-columns"
 ---
 
-Settled payments accumulate in one balance held in **USDT**, which you pay out manually or on a schedule in CHF, EUR or USD. The dashboard shows the balance in the currency you choose. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
+Settled payments accumulate in one balance held in **USDT**, which you pay out manually or on a schedule in CHF, EUR, USD or GBP. The dashboard shows the balance in the currency you choose. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
 
 ## Balances
 
-Your balance is kept in USDT. When a payment settles, the invoiced amount minus Qint's fee is converted into USDT at the market rate of that moment and credited; the payment's detail view and the CSV export show the USDT credited and the rate used. The dashboard displays the balance in your **display currency** (CHF, EUR or USD, chosen under Settings → Payouts) as a live estimate next to the exact USDT figure. The balance splits in two:
+Your balance is kept in USDT. When a payment settles, the invoiced amount minus Qint's fee — or, for a payment settled [underpaid](/guides/underpayments), the amount actually received minus Qint's fee on that amount — is converted into USDT at the market rate of that moment and credited; the payment's detail view and the CSV export show the USDT credited and the rate used. The dashboard displays the balance in your **display currency** (CHF, EUR, USD or GBP, chosen under Settings → Payouts) as a live estimate next to the exact USDT figure. The balance splits in two:
 
 | Bucket | Meaning |
 | --- | --- |
@@ -19,7 +19,7 @@ The **holding period** is 1–3 days (default 2), set on your account by Qint. R
 
 ## Manual payouts
 
-**Dashboard → Payouts → Withdraw funds.** Choose bank transfer, the payout currency (CHF, EUR or USD), the amount in that currency, and an optional note. The dialog shows the live market rate and the USDT that will be sold; the rate is frozen on the payout when you request it, and there is no conversion fee. Requires the Owner, Admin or Finance role.
+**Dashboard → Payouts → Withdraw funds.** Choose bank transfer, the payout currency (CHF, EUR, USD or GBP), the amount in that currency, and an optional note. The dialog shows the live market rate and the USDT that will be sold; the rate is frozen on the payout when you request it, and there is no conversion fee. Requires the Owner, Admin or Finance role.
 
 | Type | What it means |
 | --- | --- |
@@ -60,7 +60,7 @@ When due, Qint automatically creates one **Bank** payout of the full available b
 
 ## Fees
 
-Qint's service fee is a small **conversion spread** taken when a payment is credited to your balance — there are no fee lines on invoices or checkout, and converting your balance to CHF, EUR or USD at payout carries no additional fee. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.
+Qint's service fee is a small **conversion spread** taken when a payment is credited to your balance — there are no fee lines on invoices or checkout, and converting your balance to CHF, EUR, USD or GBP at payout carries no additional fee. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.
 
 ### Payout fees
 
@@ -71,9 +71,9 @@ Payout fees apply in addition to the conversion spread and depend on where the m
 | **CHF to a Swiss bank account** | None | None | Not applicable — no payout threshold |
 | **EUR to a Swiss bank account (CH IBAN)** | Equivalent of CHF 5'000 | Free once the minimum is reached | **CHF 25** per early payout, deducted from the payout |
 | **CHF to a foreign bank account** (e.g. Revolut) | Equivalent of CHF 5'000 | Free once the minimum is reached | **CHF 25** per early payout, deducted from the payout |
-| **Any other foreign-currency payout** | Equivalent of CHF 5'000 | Free once the minimum is reached | **CHF 25** per early payout, deducted from the payout |
+| **Any other foreign-currency payout** (e.g. USD or GBP) | Equivalent of CHF 5'000 | Free once the minimum is reached | **CHF 25** per early payout, deducted from the payout |
 
-The route is decided per payout from the payout currency and the country of your registered IBAN. For payout types with a minimum, your balance accumulates until a payout is worth the equivalent of CHF 5'000 (at the current CHF rate) — then it is free. If you need the money earlier, the dashboard shows the fee and the net amount before you confirm; the early-payout fee is deducted from the payout and the **net** amount is transferred. Payout rows and the CSV export carry `fee_amount` and `net_amount`; the requested gross amount is what is reserved from your balance.
+The route is decided per payout from the payout currency and the country of your registered IBAN. A GBP payout always falls under **any other foreign-currency payout**. For payout types with a minimum, your balance accumulates until a payout is worth the equivalent of CHF 5'000 (at the current CHF rate) — then it is free. If you need the money earlier, the dashboard shows the fee and the net amount before you confirm; the early-payout fee is deducted from the payout and the **net** amount is transferred. Payout rows and the CSV export carry `fee_amount` and `net_amount`; the requested gross amount is what is reserved from your balance.
 
 <Note>
 Requesting an early payout through the dashboard requires an explicit confirmation of the fee. Scheduled payouts never charge it — they wait for the threshold.

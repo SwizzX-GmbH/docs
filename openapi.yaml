@@ -228,7 +228,7 @@ components:
     BadRequest:
       description: >
         Invalid request — e.g. a non-positive amount, an unsupported currency
-        (only CHF, EUR and USD are accepted), or a `returnUrl` that is not
+        (only CHF, EUR, USD and GBP are accepted), or a `returnUrl` that is not
         absolute https or exceeds 500 characters.
       content:
         application/problem+json:
@@ -237,7 +237,7 @@ components:
           example:
             title: An error occurred while processing your request.
             status: 400
-            detail: Currency must be one of CHF, EUR, USD.
+            detail: "currency must be one of: CHF, EUR, USD, GBP."
     Unauthorized:
       description: Missing, malformed, revoked or unknown API key.
       content:
@@ -278,8 +278,8 @@ components:
           examples: [49.9]
         currency:
           type: string
-          enum: [CHF, EUR, USD]
-          description: Settlement currency. One of `CHF`, `EUR` or `USD`.
+          enum: [CHF, EUR, USD, GBP]
+          description: Settlement currency. One of `CHF`, `EUR`, `USD` or `GBP`.
         title:
           type: string
           description: >
@@ -320,7 +320,7 @@ components:
           examples: [49.9]
         currency:
           type: string
-          enum: [CHF, EUR, USD]
+          enum: [CHF, EUR, USD, GBP]
           description: The settlement currency.
         title:
           type: [string, "null"]
@@ -450,5 +450,5 @@ components:
         type: https://tools.ietf.org/html/rfc9110#section-15.5.1
         title: An error occurred while processing your request.
         status: 400
-        detail: Currency must be one of CHF, EUR, USD.
+        detail: "currency must be one of: CHF, EUR, USD, GBP."
         traceId: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00

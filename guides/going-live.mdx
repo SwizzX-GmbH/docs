@@ -19,7 +19,7 @@ Work through this once, top to bottom, before launch. Most production incidents 
 - [ ] **API key stored as a secret** — environment variable or secret manager, never in code or a browser. Remember it was [shown once](/authentication#keys-are-shown-once).
 - [ ] **Scopes are minimal.** Write only where payments are created; Read for reporting jobs.
 - [ ] **Idempotency keys on every create.** Your order id, passed as `idempotencyKey`, makes [retries safe](/accept-payments/api-payments#idempotency).
-- [ ] **Currency guard.** You only send `CHF`, `EUR` or `USD` — anything else is a `400`.
+- [ ] **Currency guard.** You only send `CHF`, `EUR`, `USD` or `GBP` — anything else is a `400`.
 - [ ] **`returnUrl` handled as UX, not truth.** The [return redirect](/accept-payments/api-payments#the-return-url) carries `qint_intent` and `status`, but fulfilment waits for `settled` via webhook or API.
 - [ ] **429s handled.** Back off and retry; with idempotency keys this is always safe.
 

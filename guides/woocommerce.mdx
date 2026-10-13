@@ -7,7 +7,7 @@ icon: "wordpress"
 The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checkout. Customers are redirected to Qint's hosted checkout; orders update automatically via [signed webhooks](/webhooks/overview), with a polling fallback in case a webhook is missed.
 
 <Card title="Download qint-payments.zip" icon="download" href="https://qint.ch/downloads/qint-payments.zip">
-  Current version 1.0.1 — a standard WordPress plugin package, installed through WP Admin.
+  Current version 1.0.2 — a standard WordPress plugin package, installed through WP Admin.
 </Card>
 
 **Requirements**
@@ -17,7 +17,7 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
 | WooCommerce | 8.0 – 10.x (classic and block checkout, with or without HPOS) |
 | WordPress | 6.0+ |
 | PHP | 7.4+ |
-| Store currency | **CHF, EUR or USD** |
+| Store currency | **CHF, EUR, USD or GBP** |
 | Qint account | An [approved](/guides/going-live) merchant account on [dashboard.qint.ch](https://dashboard.qint.ch) |
 | Site | Reachable over **HTTPS** from the public internet (for webhooks) |
 
@@ -53,7 +53,7 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
 
     <Note>
     The payment method only appears at checkout when the store currency is
-    CHF, EUR or USD (WooCommerce → Settings → General → Currency).
+    CHF, EUR, USD or GBP (WooCommerce → Settings → General → Currency).
     </Note>
   </Step>
 
@@ -122,7 +122,7 @@ and contact the buyer.
 <AccordionGroup>
   <Accordion title="The payment method doesn't show at checkout">
     Check, in this order: the gateway is enabled; an API key is saved; the
-    store currency is CHF, EUR or USD; the cart total is above zero. On the
+    store currency is CHF, EUR, USD or GBP; the cart total is above zero. On the
     block checkout, hard-refresh the page after enabling the gateway.
   </Accordion>
   <Accordion title="Customers see “We could not start the crypto payment”">
@@ -156,6 +156,8 @@ and contact the buyer.
 Deleting the plugin from the Plugins screen removes its settings and transients. Order meta (intent ids, statuses) is preserved as part of your order history.
 
 ## Changelog
+
+**1.0.2** — Adds GBP as a supported store currency.
 
 **1.0.1** — Handles payments reversed after settlement (order on hold, never completed); polling no longer clears the underpaid flag; stale/out-of-order webhook deliveries are ignored; intents are reused only while amount and currency still match the order; reconciles on return from the hosted checkout; test pings are logged.
 
