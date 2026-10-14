@@ -7,7 +7,7 @@ icon: "wordpress"
 The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checkout. Customers are redirected to Qint's hosted checkout; orders update automatically via [signed webhooks](/webhooks/overview), with a polling fallback in case a webhook is missed.
 
 <Card title="Download qint-payments.zip" icon="download" href="https://qint.ch/downloads/qint-payments.zip">
-  Current version 1.0.2 — a standard WordPress plugin package, installed through WP Admin.
+  Current version 1.0.3 — a standard WordPress plugin package, installed through WP Admin.
 </Card>
 
 **Requirements**
@@ -17,7 +17,7 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
 | WooCommerce | 8.0 – 10.x (classic and block checkout, with or without HPOS) |
 | WordPress | 6.0+ |
 | PHP | 7.4+ |
-| Store currency | **CHF, EUR, USD or GBP** |
+| Store currency | **CHF, EUR, USD or GBP**, while that currency is [enabled on Qint](/accept-payments/api-payments#currency-availability) |
 | Qint account | An [approved](/guides/going-live) merchant account on [dashboard.qint.ch](https://dashboard.qint.ch) |
 | Site | Reachable over **HTTPS** from the public internet (for webhooks) |
 
@@ -52,8 +52,15 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
     | Red, mentions scopes | Recreate the key with **Read + Write**. |
 
     <Note>
-    The payment method only appears at checkout when the store currency is
-    CHF, EUR, USD or GBP (WooCommerce → Settings → General → Currency).
+    The payment method only appears at checkout when the store currency
+    (WooCommerce → Settings → General → Currency) is enabled on Qint. Qint
+    supports CHF, EUR, USD and GBP and can
+    [switch a currency off](/accept-payments/api-payments#currency-availability)
+    temporarily; the plugin reads the current list from the public
+    [list currencies](/api-reference/list-currencies) endpoint (refreshed
+    every 10 minutes and whenever you save the settings), shows it at the top
+    of the gateway settings page ("Currencies enabled on Qint: …"), and warns
+    there when your store currency is disabled or unsupported.
     </Note>
   </Step>
 
@@ -90,7 +97,7 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
 
 | Qint intent status | WooCommerce order |
 | --- | --- |
-| `settled` | Payment complete (processing/completed) + note with asset & amount |
+| `settled` | Payment complete (processing/completed) + note with asset & amount, plus the settlement figures when known (see below) |
 | `settled` + `reversed: true` | **On hold** + note "payment REVERSED" — never counts as paid |
 | `confirmed` / `pending` / `initiated` | Order note only |
 | `failed` | Failed |
@@ -101,6 +108,8 @@ Webhooks are the primary mechanism: every [`payment.status` event](/webhooks/eve
 
 As a fallback, when the customer lands on the order-received (thank-you) page, on the order-pay page, or comes back from the hosted checkout with `?qint_intent=…` in the URL, and the order is still pending/on-hold, the plugin polls [`GET /api/v1/intents/{id}`](/api-reference/get-intent) once (throttled to one call per 30 s) and applies the same mapping.
 
+When the settlement is applied from an API read (the polling fallback, or a reused intent at checkout), the "payment settled" note also lists the settlement figures the API reports — for example `Qint settlement: fee 0.25 CHF, net 49.65 CHF, credited 55.786517 USDT.` — from the intent's `feeAmount`, `netAmount`, `creditUsdt` and `creditAsset` (`USDT`, or `USDC` for merchants registered in the EEA). The [`payment.status` webhook](/webhooks/events) does not carry these figures, so a note written from a webhook has the asset and amount only; the figures are always in the Qint dashboard.
+
 The admin order screen shows a **Qint payment** box with the intent id, cached status, underpaid/reversed flags and a dashboard link; the cache self-refreshes when older than 2 minutes while payment is pending.
 
 <Tip>
@@ -110,6 +119,15 @@ dashboard's review queue whether to accept the lesser amount or decline, see
 that a settled payment was reversed by the payment partner: do not fulfil,
 and contact the buyer.
 </Tip>
+
+## Currency availability
+
+Since 1.0.3 the plugin follows Qint's currency switches:
+
+- **Hidden while off.** The plugin caches the result of [`GET /api/v1/public/currencies`](/api-reference/list-currencies) for 10 minutes and hides the payment method at checkout while the store currency is switched off on Qint (or is not a Qint currency at all). Saving the gateway settings refreshes the list.
+- **Settings page.** The gateway settings page lists the currencies currently enabled on Qint and shows a warning when the store currency is disabled ("… is currently disabled on Qint, so the Qint payment method is hidden at checkout") or unsupported.
+- **API unreachable.** If the list cannot be fetched, the plugin assumes CHF, EUR, USD and GBP are enabled and retries after one minute. Qint still refuses a disabled currency when the intent is created, which is handled as below.
+- **Race at checkout.** If a currency is switched off between the cached check and the order, the customer sees "Crypto payments are not available for orders in GBP at the moment. Please choose another payment method." instead of the raw API error, and the plugin refreshes its cached list.
 
 ## What the plugin sends and stores
 
@@ -122,8 +140,10 @@ and contact the buyer.
 <AccordionGroup>
   <Accordion title="The payment method doesn't show at checkout">
     Check, in this order: the gateway is enabled; an API key is saved; the
-    store currency is CHF, EUR, USD or GBP; the cart total is above zero. On the
-    block checkout, hard-refresh the page after enabling the gateway.
+    store currency is CHF, EUR, USD or GBP **and currently enabled on Qint**
+    (the gateway settings page lists the enabled currencies and warns if
+    yours is off); the cart total is above zero. On the block checkout,
+    hard-refresh the page after enabling the gateway.
   </Accordion>
   <Accordion title="Customers see “We could not start the crypto payment”">
     The intent creation failed. Open **WooCommerce → Status → Logs →
@@ -156,6 +176,8 @@ and contact the buyer.
 Deleting the plugin from the Plugins screen removes its settings and transients. Order meta (intent ids, statuses) is preserved as part of your order history.
 
 ## Changelog
+
+**1.0.3** — Respects Qint's currency switches: reads the enabled currencies from `GET /api/v1/public/currencies` (cached 10 minutes, 1 minute after a failed fetch, falling back to CHF/EUR/USD/GBP) and hides the payment method while the store currency is off; the settings page lists the enabled currencies and warns when the store currency is disabled or unsupported; a checkout that races a switch-off shows a clear message instead of the raw API error; the "payment settled" order note adds Qint's fee, the net amount and the settlement asset credited (USDT/USDC) when the API reports them.
 
 **1.0.2** — Adds GBP as a supported store currency.
 

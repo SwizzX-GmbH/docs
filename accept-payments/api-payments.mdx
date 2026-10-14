@@ -108,12 +108,11 @@ intent = res.json()  # res.status_code: 201 new, 200 idempotent replay
   "underpaidBps": null,
   "creditUsdt": null,
   "creditRate": null,
-  "creditAsset": null,
-  "inquiryStatus": null
+  "creditAsset": null
 }
 ```
 
-Once a payment settles, the same object also tells you what you were credited: `feeAmount` (Qint's fee) and `netAmount` (what reaches your balance), both in `currency`; `creditUsdt`, `creditRate` and `creditAsset` (the stablecoin credited, the fiat-per-unit rate at that moment, and which stablecoin it is: `USDT`, or `USDC` for merchants registered in the EEA — see [settlement asset](/guides/payouts#settlement-asset); the `creditUsdt` name predates USDC). If the buyer paid slightly short within your accepted underpayment, `underpaid` is `true`, `receivedAmount` is the fiat amount actually paid and `underpaidBps` how short it was (100 = 1 %); the fee and the net are computed on `receivedAmount`. `reversed` / `reversedAt` are set when the execution partner reversed a settled payment — treat it as not paid.
+Once a payment settles, the same object also tells you what you were credited: `feeAmount` (Qint's fee) and `netAmount` (what reaches your balance), both in `currency` and both `null` until the status is `settled`; `settledAmount` is the fiat amount the payment partner realised, booked after settlement (`null` until then — once set, fee and net are computed on it instead of `amount`); `creditUsdt`, `creditRate` and `creditAsset` (the stablecoin credited, the fiat-per-unit rate at that moment, and which stablecoin it is: `USDT`, or `USDC` for merchants registered in the EEA — see [settlement asset](/guides/payouts#settlement-asset); the `creditUsdt` name predates USDC). If the buyer paid slightly short within your accepted underpayment, `underpaid` is `true`, `receivedAmount` is the fiat amount actually paid and `underpaidBps` how short it was (100 = 1 %); the fee and the net are computed on `receivedAmount`. `reversed` / `reversedAt` are set when the execution partner reversed a settled payment — treat it as not paid.
 
 Field rules ([full reference](/api-reference/create-intent)):
 
@@ -129,11 +128,9 @@ Field rules ([full reference](/api-reference/create-intent)):
 
 Qint can switch a currency off for new payments, and back on, at any time. While a currency is off, creating an intent in it returns `400` with a `detail` such as `GBP is currently disabled on Qint. currency must be one of: CHF, EUR, USD.` Intents, links and invoices already created in that currency keep working and can still be paid, and existing balances are unaffected.
 
-To check before you create, call the public, unauthenticated [list currencies](/api-reference/list-currencies) endpoint — `GET https://api.qint.ch/api/v1/public/currencies` returns every currency with `enabled: true|false`. Cache it for a minute or so; do not call it on every checkout.
+This `400` has **no machine-readable `code`** — the problem document carries only the usual `type`, `title`, `status`, `detail` and `traceId`. If you must recognise it after the fact, match `detail` against `is currently disabled on Qint`; the list after "must be one of" is the currencies enabled at that moment.
 
-### The inquiry status field
-
-`inquiryStatus` is `null` for almost every payment. When Qint asks you about a specific payment in a [compliance inquiry](/guides/compliance-inquiries), it reads `open`, then `answered` once you reply, and finally `cleared` or `confirmed` when the review ends. The payment's `status` is not affected, and there is no webhook event for inquiries; use this field when you reconcile.
+The reliable way is to check before you create: call the public, unauthenticated [list currencies](/api-reference/list-currencies) endpoint — `GET https://api.qint.ch/api/v1/public/currencies` returns every currency with `enabled: true|false` — and hide or disable crypto payment for a currency that is off. The response may be cached for 30 seconds; cache it on your side for a minute or so rather than calling it on every checkout, and still handle the `400` for the moment a currency is switched off between your check and the create.
 
 ## Payment limits
 
