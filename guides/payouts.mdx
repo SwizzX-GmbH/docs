@@ -4,11 +4,22 @@ description: "Balances, the holding period, and getting your money out."
 icon: "building-columns"
 ---
 
-Settled payments accumulate in one balance held in **USDT**, which you pay out manually or on a schedule in CHF, EUR, USD or GBP. The dashboard shows the balance in the currency you choose. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
+Settled payments accumulate in one balance held in a stablecoin — **USDT**, or **USDC** if your business is registered in the European Union — which you pay out manually or on a schedule in CHF, EUR, USD or GBP. The dashboard shows the balance in the currency you choose. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
+
+## Settlement asset
+
+Your **settlement asset** is the stablecoin your balance is held in:
+
+| Country of registration | Settlement asset | Crypto payouts |
+| --- | --- | --- |
+| A member state of the **European Union** | **USDC** | USDC only — on Ethereum (ERC-20) or Solana |
+| Anywhere else (including Switzerland, the UK, Liechtenstein, Norway and Iceland) | **USDT** | USDT only — on Tron (TRC-20), Ethereum (ERC-20) or Solana |
+
+USDT is not authorised under the EU's Markets in Crypto-Assets Regulation (MiCA), so EU merchants settle in USDC. The asset is set from the country of registration you enter during onboarding. It is shown on **Dashboard → Balances**, under **Settings → Payouts**, and in the API as `creditAsset` on a payment intent ([API payments](/accept-payments/api-payments)). Your customers can still pay in any [accepted asset](/accept-payments/assets-and-networks); only what your balance is held in changes. Fees and bank payouts work the same for both. Qint support can change the asset only once your balance in the current asset has been paid out — funds are never converted between stablecoins by a settings change.
 
 ## Balances
 
-Your balance is kept in USDT. When a payment settles, the invoiced amount minus Qint's fee — or, for a payment settled [underpaid](/guides/underpayments), the amount actually received minus Qint's fee on that amount — is converted into USDT at the market rate of that moment and credited; the payment's detail view and the CSV export show the USDT credited and the rate used. The dashboard displays the balance in your **display currency** (CHF, EUR, USD or GBP, chosen under Settings → Payouts) as a live estimate next to the exact USDT figure. The balance splits in two:
+Your balance is kept in your settlement asset (below, "USDT" stands for either). When a payment settles, the invoiced amount minus Qint's fee — or, for a payment settled [underpaid](/guides/underpayments), the amount actually received minus Qint's fee on that amount — is converted into the settlement asset at the market rate of that moment and credited; the payment's detail view and the CSV export show the amount credited, the asset (`credit_asset`) and the rate used. The dashboard displays the balance in your **display currency** (CHF, EUR, USD or GBP, chosen under Settings → Payouts) as a live estimate next to the exact USDT or USDC figure. The balance splits in two:
 
 | Bucket | Meaning |
 | --- | --- |
@@ -25,7 +36,7 @@ The **holding period** is 1–3 days (default 2), set on your account by Qint. R
 | --- | --- |
 | **Bank** | Transfer to the bank account from your onboarding profile. |
 | **Cash** | Disabled pending written compliance approval; not generally available. |
-| **Crypto** | Requires an explicitly agreed, tested payout arrangement with the execution partner; not a launch-ready self-service workflow. |
+| **Crypto** | Requires an explicitly agreed, tested payout arrangement with the execution partner; not a launch-ready self-service workflow. Paid in your [settlement asset](#settlement-asset) only — USDC for EU merchants, USDT otherwise; a request in the other stablecoin is refused. |
 
 Qint payouts are **record-and-track**: the payout request is registered with Qint's payment partner for execution, and its status updates flow back into your dashboard automatically. Each payout carries a reference once executed — use it to reconcile against your bank statement.
 

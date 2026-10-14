@@ -280,6 +280,14 @@ components:
           schema:
             $ref: "#/components/schemas/Problem"
   schemas:
+    SettlementAsset:
+      type: string
+      enum: [USDT, USDC]
+      description: >
+        The stablecoin a merchant's balance is held in. Merchants registered in
+        the European Union settle in `USDC` (USDT is not authorised under
+        MiCA); all other merchants settle in `USDT`. Decided by the country of
+        registration at onboarding; Qint support can change it.
     IntentStatus:
       type: string
       description: |
@@ -403,6 +411,27 @@ components:
             Set when the payment partner reversed the payment after it had
             settled. `status` stays `settled`; treat a reversed payment as not
             paid. See the webhook reversal fields.
+        creditUsdt:
+          type: [number, "null"]
+          description: >
+            The amount credited to your balance for this payment, in
+            `creditAsset` (6 decimal places). The name predates USDC: for a
+            merchant settling in USDC this is USDC. `null` until the payment
+            is settled and credited.
+          examples: [108.9]
+        creditRate:
+          type: [number, "null"]
+          description: >
+            Fiat units of `currency` per 1 unit of `creditAsset` used for the
+            credit. `null` until credited.
+          examples: [0.8909]
+        creditAsset:
+          description: >
+            The stablecoin the credit was booked in — your settlement asset at
+            the moment of crediting. `null` until credited.
+          oneOf:
+            - $ref: "#/components/schemas/SettlementAsset"
+            - type: "null"
       example:
         id: pi_x7k2m9p4q1w8
         status: initiated
