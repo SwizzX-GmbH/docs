@@ -333,7 +333,7 @@ components:
       enum: [USDT, USDC]
       description: >
         The stablecoin a merchant's balance is held in. Merchants registered in
-        the European Union settle in `USDC` (USDT is not authorised under
+        the European Economic Area (EU-27, Iceland, Liechtenstein, Norway) settle in `USDC` (USDT is not authorised under
         MiCA); all other merchants settle in `USDT`. Decided by the country of
         registration at onboarding; Qint support can change it.
     IntentStatus:
