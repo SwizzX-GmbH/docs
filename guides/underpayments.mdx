@@ -52,7 +52,9 @@ policy as [payouts](/guides/payouts).
 
 ## Overpayments
 
-Overpayments are unchanged: an overpaid payment settles, is credited the **invoiced amount**, and is flagged `overpaid` for information; refunds of the excess are handled off-platform.
+An overpaid payment (more crypto than quoted) **settles normally** and is credited exactly like any other payment — on the **invoiced amount** (or the booked settled amount) less Qint's fee; the excess is not added to your balance. Your integration sees an ordinary `settled` event: there is no overpayment field on the payment intent and no webhook for it.
+
+Instead, the payment also appears in the dashboard's **review queue** with the reason **overpaid**. It is informational — the payment is already paid. Refund the excess to the buyer off-platform, then **Acknowledge** the item (Owner, Admin or Finance role); it can be resolved once. The CSV export of your payments marks these payments in its `overpaid` column.
 
 ## What your integration should do
 

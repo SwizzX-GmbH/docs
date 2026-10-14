@@ -8,7 +8,7 @@ Qint currently emits two event types. Build your handler to **ignore event types
 
 ## `payment.status`
 
-Sent to every active endpoint on **each status transition** of a payment intent — and re-sent, with the underpayment fields populated, when an underpayment is detected on a payment (see below).
+Sent to every active endpoint on **each status transition** of a payment intent — and re-sent for the intent's current status when the underpaid flag changes or the payment is reversed (see below). Every event carries the full set of fields; the ones that don't apply are `false` or `null`.
 
 ```json
 {
@@ -18,8 +18,15 @@ Sent to every active endpoint on **each status transition** of a payment intent 
   "amount": 49.90,
   "currency": "CHF",
   "assetSymbol": "USDT",
+  "underpaid": false,
+  "receivedAmount": null,
+  "underpaidBps": null,
+  "expectedCryptoAmount": "55.48765432",
+  "receivedCryptoAmount": "55.48765432",
   "invoiceId": null,
   "paymentLinkId": null,
+  "reversed": false,
+  "reversedAt": null,
   "occurredAt": "2026-07-08T09:24:03+00:00"
 }
 ```
@@ -32,9 +39,18 @@ Sent to every active endpoint on **each status transition** of a payment intent 
 | `amount` | number | The fiat amount of the payment. |
 | `currency` | string | `CHF`, `EUR`, `USD` or `GBP`. |
 | `assetSymbol` | string \| null | The crypto asset the buyer chose, once chosen. |
+| `underpaid` | boolean | See [underpayment fields](#underpayment-fields). |
+| `receivedAmount` | number \| null | See [underpayment fields](#underpayment-fields). |
+| `underpaidBps` | integer \| null | See [underpayment fields](#underpayment-fields). |
+| `expectedCryptoAmount` | string \| null | The quoted crypto amount, as an 8-decimal string. `null` until the buyer has picked an asset. |
+| `receivedCryptoAmount` | string \| null | What actually arrived, as an 8-decimal string. `null` until the payment partner has reported a deposit. |
 | `invoiceId` | string \| null | Set when the payment pays an [invoice](/accept-payments/invoices) (`inv_…`). |
 | `paymentLinkId` | string \| null | Set when the payment came through a [payment link](/accept-payments/payment-links) (`pl_…`). |
+| `reversed` | boolean | See [reversal fields](#reversal-fields). |
+| `reversedAt` | string \| null | See [reversal fields](#reversal-fields). |
 | `occurredAt` | string (ISO 8601) | When the transition happened. |
+
+The event does **not** carry the settlement figures (`feeAmount`, `netAmount`, `settledAmount`, `creditUsdt`, `creditRate`, `creditAsset`). Read them from [`GET /api/v1/intents/{id}`](/api-reference/get-intent) after a `settled` event.
 
 <Tip>
 Fulfil on `status: "settled"` and nothing else. `confirmed` means the
@@ -53,11 +69,15 @@ When the payment partner detects that a buyer sent **less than the quoted amount
   "amount": 49.90,
   "currency": "CHF",
   "assetSymbol": "USDT",
-  "invoiceId": null,
-  "paymentLinkId": null,
   "underpaid": true,
+  "receivedAmount": null,
+  "underpaidBps": null,
   "expectedCryptoAmount": "55.48765432",
   "receivedCryptoAmount": "53.20000000",
+  "invoiceId": null,
+  "paymentLinkId": null,
+  "reversed": false,
+  "reversedAt": null,
   "occurredAt": "2026-07-08T09:21:40+00:00"
 }
 ```
@@ -88,8 +108,8 @@ A payment short by no more than the merchant's [accepted underpayment](/guides/u
 | `underpaid` | boolean | `true` when the received amount is short. A **flag, not a status** — the intent's status is unchanged by the detection itself. |
 | `receivedAmount` | number \| null | The fiat amount actually received (in `currency`) — the amount the merchant is credited for, before Qint's fee. `null` unless the payment is underpaid. |
 | `underpaidBps` | integer \| null | The shortfall in basis points of `amount` (`30` = 0.3 %). `null` unless the payment is underpaid. |
-| `expectedCryptoAmount` | string | The quoted crypto amount, as an 8-decimal string. |
-| `receivedCryptoAmount` | string | What actually arrived, as an 8-decimal string. |
+| `expectedCryptoAmount` | string \| null | The quoted crypto amount, as an 8-decimal string. |
+| `receivedCryptoAmount` | string \| null | What actually arrived, as an 8-decimal string. |
 
 What to do with an underpaid event — including the merchant review queue for payments that expire underpaid — is covered in the [underpayments guide](/guides/underpayments).
 
@@ -125,7 +145,23 @@ Every `payment.status` event carries `reversed` (normally `false`) and `reversed
 
 ## `ping`
 
-Emitted when you press **Send test event** in the dashboard. It travels the same pipeline as real events — same signature scheme, same `X-Qint-Event-Id` header, same retry behavior — with `"type": "ping"` in the payload. Verify it like any event, then return 2xx and ignore it.
+Emitted when you press **Send test event** in the dashboard. It travels the same pipeline as real events — same signature scheme, same `X-Qint-Event-Id` header, same retry behavior. The full payload:
+
+```json
+{
+  "type": "ping",
+  "endpointId": "3f2b8c1e-7a4d-4e9b-9c61-2d5f0a8e4b17",
+  "sentAt": "2026-07-08T09:10:00+00:00"
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `type` | string | Always `ping`. |
+| `endpointId` | string (UUID) | The id of the webhook endpoint the test was sent to — the endpoint you pressed the button on. |
+| `sentAt` | string (ISO 8601) | When the test event was queued. |
+
+Verify it like any event, then return 2xx and ignore it.
 
 ## Related
 
@@ -138,13 +174,11 @@ Emitted when you press **Send test event** in the dashboard. It travels the same
   </Card>
 </CardGroup>
 
-## Excess, late deposits and destination memos
+## Overpayments and late deposits
 
-`overpaid` is an informational flag on a settled payment; it does not create another
-payment status. Late deposits can require merchant review after expiry. Do not infer
-a successful payment from the presence of a deposit alone: use the API status and
-review outcome. Refunds of excess are handled with the execution partner, not by
-assuming a webhook initiates a refund.
+There is **no overpayment field or event**. When a buyer sends more than the quoted amount, the payment settles normally and you receive the usual `settled` event. It is credited exactly like a normal payment — on the invoiced amount (or the booked `settledAmount`) less Qint's fee — so the excess is not added to your balance. Qint puts the payment in your dashboard's **review queue** (reason "overpaid") so you can refund the excess to the buyer off-platform and then acknowledge the item. The CSV export of your payments also has an `overpaid` column. See [underpayments](/guides/underpayments#overpayments).
+
+A deposit that arrives after the payment window has expired also goes to the review queue. The intent stays `expired` until you decide; accepting it sends the normal `settled` event. Do not infer a successful payment from the presence of a deposit alone: use the API status and the review outcome.
 
 For XRP and XLM, display the checkout's destination memo/tag as well as its address.
 An address alone may not identify the intended payment. Treat memo values as strings.

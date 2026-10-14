@@ -95,23 +95,39 @@ paths:
               schema:
                 $ref: "#/components/schemas/PaymentIntent"
         "400":
-          description: >
-            Invalid request — including `code: "amount_out_of_range"` when the
-            amount is outside the allowed range (CHF 10 to CHF 100'000 or the
-            equivalent, or your agreed cap). `minChf`, `maxChf` and `amountChf`
-            are returned alongside the problem details.
+          description: |
+            Invalid request. Only an amount outside the allowed range (CHF 10
+            to CHF 100'000 or the equivalent, or your agreed cap) carries a
+            machine-readable `code` (`amount_out_of_range`, with `minChf`,
+            `maxChf` and `amountChf` alongside).
+
+            Every other 400 has **no `code`**; the reason is in `detail` only.
+            That includes a currency Qint has switched off for new payments:
+            `detail` reads `"{CODE} is currently disabled on Qint. currency
+            must be one of: {enabled list}."`. To avoid it, check
+            `GET /api/v1/public/currencies` before creating the intent; to
+            recognise it after the fact, match `detail` against
+            `is currently disabled on Qint`.
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-              example:
-                title: An error occurred while processing your request.
-                status: 400
-                detail: "Payments must be between CHF 10 and CHF 100'000 (or the equivalent). This amount is CHF 5.40."
-                code: amount_out_of_range
-                minChf: 10
-                maxChf: 100000
-                amountChf: 5.4
+              examples:
+                amountOutOfRange:
+                  summary: Amount outside the payment limits
+                  value:
+                    title: An error occurred while processing your request.
+                    status: 400
+                    detail: "Payments must be between CHF 10 and CHF 100'000 (or the equivalent). This amount is CHF 5.40."
+                    code: amount_out_of_range
+                    minChf: 10
+                    maxChf: 100000
+                    amountChf: 5.4
+                currencyDisabled:
+                  summary: Currency switched off (no code)
+                  value:
+                    status: 400
+                    detail: "GBP is currently disabled on Qint. currency must be one of: CHF, EUR, USD."
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -207,8 +223,11 @@ paths:
         Public, unauthenticated. Every fiat currency Qint knows, with whether it
         is offered for **new** payments right now. Qint can switch a currency
         off (and back on) at any time; while it is off, creating an intent,
-        link or invoice in it is refused with `400`. Records already created in
-        that currency keep working.
+        link or invoice in it is refused with `400`. That `400` has no
+        machine-readable `code` — only a `detail` such as
+        `GBP is currently disabled on Qint. currency must be one of: CHF, EUR, USD.`
+        — so call this endpoint before creating an intent rather than parsing
+        the error. Records already created in that currency keep working.
 
         The response is cacheable for 30 seconds — cache it on your side
         rather than calling it on every checkout.
@@ -367,7 +386,8 @@ components:
           description: >
             Settlement currency. One of `CHF`, `EUR`, `USD` or `GBP`, and only
             while Qint offers it: a currency switched off for new payments is
-            refused with `400` (check `GET /api/v1/public/currencies`).
+            refused with `400` and no `code` (check
+            `GET /api/v1/public/currencies` first).
         title:
           type: string
           description: >
@@ -394,7 +414,7 @@ components:
       type: object
       description: A payment intent as returned by the merchant API.
       required:
-        [id, status, amount, currency, checkoutUrl, createdAt, expiresAt]
+        [id, status, amount, currency, checkoutUrl, createdAt, expiresAt, reversed, underpaid]
       properties:
         id:
           type: string
@@ -462,6 +482,63 @@ components:
             Set when the payment partner reversed the payment after it had
             settled. `status` stays `settled`; treat a reversed payment as not
             paid. See the webhook reversal fields.
+        reversed:
+          type: boolean
+          description: >
+            `true` once the payment has been reversed (`reversedAt` is set),
+            otherwise `false`. A flag, not a status: `status` stays `settled`.
+            Treat a reversed payment as not paid.
+          examples: [false]
+        underpaid:
+          type: boolean
+          description: >
+            `true` when the buyer sent less crypto than quoted. A flag, not a
+            status. On an open or `expired` intent it means a short payment
+            was detected; on a `settled` intent it means the payment settled
+            short within your accepted underpayment (or was accepted from the
+            review queue) and was credited on `receivedAmount`. See
+            [underpayments](https://docs.qint.ch/guides/underpayments).
+          examples: [false]
+        feeAmount:
+          type: [number, "null"]
+          description: >
+            Qint's fee deducted from your credit for this payment, in
+            `currency`. `0` when the buyer paid the fee on top and the
+            realised amount is not booked yet. `null` until `status` is
+            `settled`. Computed from the current figures, so it can change
+            once `settledAmount` is booked.
+          examples: [0.25]
+        netAmount:
+          type: [number, "null"]
+          description: >
+            What your balance is credited for this payment, in `currency`:
+            the credit basis (`settledAmount` once booked, otherwise `amount`;
+            `receivedAmount` for a payment settled underpaid) minus
+            `feeAmount`. `null` until `status` is `settled`. The stablecoin
+            credit itself is `creditUsdt` in `creditAsset`.
+          examples: [49.65]
+        settledAmount:
+          type: [number, "null"]
+          description: >
+            The fiat amount (in `currency`) the payment partner realised for
+            the payment, before Qint's fee. Booked after settlement, so it is
+            `null` at first and on most freshly settled payments; once set it
+            replaces `amount` as the basis for `feeAmount` and `netAmount`.
+          examples: [null]
+        receivedAmount:
+          type: [number, "null"]
+          description: >
+            For a payment that is underpaid and short: the fiat amount
+            actually paid (in `currency`), the basis you are credited on
+            before the fee. `null` otherwise.
+          examples: [null]
+        underpaidBps:
+          type: [integer, "null"]
+          description: >
+            How short an underpaid payment is, in basis points of the
+            expected crypto amount (`30` = 0.3 %). `null` unless the payment
+            is underpaid and short.
+          examples: [null]
         creditUsdt:
           type: [number, "null"]
           description: >
@@ -499,6 +576,16 @@ components:
         confirmedAt: null
         settledAt: null
         reversedAt: null
+        reversed: false
+        underpaid: false
+        feeAmount: null
+        netAmount: null
+        settledAmount: null
+        receivedAmount: null
+        underpaidBps: null
+        creditUsdt: null
+        creditRate: null
+        creditAsset: null
     PagedIntents:
       type: object
       required: [items, total, page, pageSize]
@@ -533,6 +620,16 @@ components:
             confirmedAt: "2026-07-08T09:21:12+00:00"
             settledAt: "2026-07-08T09:24:03+00:00"
             reversedAt: null
+            reversed: false
+            underpaid: false
+            feeAmount: 0.25
+            netAmount: 49.65
+            settledAmount: null
+            receivedAmount: null
+            underpaidBps: null
+            creditUsdt: 55.786517
+            creditRate: 0.89
+            creditAsset: USDT
         total: 1
         page: 1
         pageSize: 20
@@ -557,7 +654,10 @@ components:
           description: Request correlation id — include it in support requests.
         code:
           type: string
-          description: Machine-readable error code, e.g. `amount_out_of_range` or `rate_unavailable`.
+          description: >
+            Machine-readable error code, e.g. `amount_out_of_range` or
+            `rate_unavailable`. Absent on most errors — including a disabled
+            currency — so fall back to `status` and `detail`.
         minChf:
           type: number
           description: Only with `amount_out_of_range` — the minimum payment in CHF.
