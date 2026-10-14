@@ -38,6 +38,8 @@ security:
 tags:
   - name: Payment intents
     description: Create standalone payments and read their status.
+  - name: Currencies
+    description: Which fiat currencies Qint currently offers for new payments.
 paths:
   /api/v1/intents:
     post:
@@ -195,6 +197,34 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /api/v1/public/currencies:
+    get:
+      operationId: listCurrencies
+      tags: [Currencies]
+      summary: List currencies
+      security: []
+      description: |
+        Public, unauthenticated. Every fiat currency Qint knows, with whether it
+        is offered for **new** payments right now. Qint can switch a currency
+        off (and back on) at any time; while it is off, creating an intent,
+        link or invoice in it is refused with `400`. Records already created in
+        that currency keep working.
+
+        The response is cacheable for 30 seconds — cache it on your side
+        rather than calling it on every checkout.
+      responses:
+        "200":
+          description: The currency list, in display order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrencyList"
+              example:
+                currencies:
+                  - { code: CHF, enabled: true }
+                  - { code: EUR, enabled: true }
+                  - { code: USD, enabled: true }
+                  - { code: GBP, enabled: false }
   /api/v1/intents/{id}:
     get:
       operationId: getIntent
@@ -257,8 +287,9 @@ components:
     BadRequest:
       description: >
         Invalid request — e.g. a non-positive amount, an unsupported currency
-        (only CHF, EUR, USD and GBP are accepted), or a `returnUrl` that is not
-        absolute https or exceeds 500 characters.
+        (only CHF, EUR, USD and GBP are accepted), a currency Qint has
+        currently switched off (see `GET /api/v1/public/currencies`), or a
+        `returnUrl` that is not absolute https or exceeds 500 characters.
       content:
         application/problem+json:
           schema:
@@ -280,6 +311,23 @@ components:
           schema:
             $ref: "#/components/schemas/Problem"
   schemas:
+    CurrencyList:
+      type: object
+      required: [currencies]
+      properties:
+        currencies:
+          type: array
+          items:
+            type: object
+            required: [code, enabled]
+            properties:
+              code:
+                type: string
+                description: ISO 4217 currency code.
+                examples: [CHF]
+              enabled:
+                type: boolean
+                description: Whether the currency is offered for new payments right now.
     IntentStatus:
       type: string
       description: |
@@ -308,7 +356,10 @@ components:
         currency:
           type: string
           enum: [CHF, EUR, USD, GBP]
-          description: Settlement currency. One of `CHF`, `EUR`, `USD` or `GBP`.
+          description: >
+            Settlement currency. One of `CHF`, `EUR`, `USD` or `GBP`, and only
+            while Qint offers it: a currency switched off for new payments is
+            refused with `400` (check `GET /api/v1/public/currencies`).
         title:
           type: string
           description: >

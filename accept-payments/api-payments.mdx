@@ -119,10 +119,16 @@ Field rules ([full reference](/api-reference/create-intent)):
 | Field | Required | Notes |
 | --- | --- | --- |
 | `amount` | yes | Positive number, in the fiat currency. Must be within the [payment limits](#payment-limits). |
-| `currency` | yes | `CHF`, `EUR`, `USD` or `GBP` — nothing else. |
+| `currency` | yes | `CHF`, `EUR`, `USD` or `GBP`, and only while Qint offers it — see [currency availability](#currency-availability). |
 | `title` | no | Shown on the checkout; falls back to your merchant display name. |
 | `idempotencyKey` | yes | Unique per merchant — see [idempotency](#idempotency). |
 | `returnUrl` | no | Absolute **https** URL, max 500 chars — see [return URL](#the-return-url). |
+
+### Currency availability
+
+Qint can switch a currency off for new payments, and back on, at any time. While a currency is off, creating an intent in it returns `400` with a `detail` such as `GBP is currently disabled on Qint. currency must be one of: CHF, EUR, USD.` Intents, links and invoices already created in that currency keep working and can still be paid, and existing balances are unaffected.
+
+To check before you create, call the public, unauthenticated [list currencies](/api-reference/list-currencies) endpoint — `GET https://api.qint.ch/api/v1/public/currencies` returns every currency with `enabled: true|false`. Cache it for a minute or so; do not call it on every checkout.
 
 ### The inquiry status field
 

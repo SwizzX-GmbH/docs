@@ -82,6 +82,12 @@
               "api-reference/get-intent",
               "api-reference/list-intents"
             ]
+          },
+          {
+            "group": "Currencies",
+            "pages": [
+              "api-reference/list-currencies"
+            ]
           }
         ]
       }
