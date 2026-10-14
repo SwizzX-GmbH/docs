@@ -107,7 +107,8 @@ intent = res.json()  # res.status_code: 201 new, 200 idempotent replay
   "receivedAmount": null,
   "underpaidBps": null,
   "creditUsdt": null,
-  "creditRate": null
+  "creditRate": null,
+  "inquiryStatus": null
 }
 ```
 
@@ -122,6 +123,10 @@ Field rules ([full reference](/api-reference/create-intent)):
 | `title` | no | Shown on the checkout; falls back to your merchant display name. |
 | `idempotencyKey` | yes | Unique per merchant — see [idempotency](#idempotency). |
 | `returnUrl` | no | Absolute **https** URL, max 500 chars — see [return URL](#the-return-url). |
+
+### The inquiry status field
+
+`inquiryStatus` is `null` for almost every payment. When Qint asks you about a specific payment in a [compliance inquiry](/guides/compliance-inquiries), it reads `open`, then `answered` once you reply, and finally `cleared` or `confirmed` when the review ends. The payment's `status` is not affected, and there is no webhook event for inquiries; use this field when you reconcile.
 
 ## Payment limits
 

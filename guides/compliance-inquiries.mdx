@@ -1,0 +1,59 @@
+---
+title: "Compliance inquiries"
+description: "What happens when Qint asks you about a specific payment — and how to answer."
+icon: "file-circle-question"
+---
+
+Qint's execution partner screens its segregated per-merchant wallets on a regular basis. If a screening hit can be traced to one particular payment, Qint asks **you, the merchant**, about exactly that transfer. Your buyers are never identified, contacted or asked anything: the question goes to the merchant who received the payment.
+
+An inquiry is a **flag for review, not a block**. The payment stays settled and your integration keeps working. Only the flagged amount is affected, as described in [the hold rule](#the-hold-rule).
+
+## What you see
+
+When an inquiry is opened on a payment:
+
+- The merchant's **Owner and Admin** users receive an e-mail with the subject **"Information requested about a payment"**. It names the payment, the amount and the reason for the request.
+- The payment shows an **Information requested** badge in **Dashboard → Transactions**, and its detail page gets an **Information requested** panel with the reason and the date it was raised.
+- The Dashboard home page shows a notice while any inquiry is open.
+- If funds are on hold, the balance tile shows a line such as **"On hold 120.00 USDT (1 payment)"**.
+
+<Note>
+There is no webhook event for inquiries yet. You learn about them through
+**e-mail and the dashboard**. The payment's `status` does not change, so your
+`payment.status` handling is unaffected.
+</Note>
+
+## How to answer
+
+Open the payment in **Dashboard → Transactions** and use the panel:
+
+1. Write your answer in the text box — up to **4'000 characters**. Explain the business context of the payment: who the goods or service were for, what was delivered, and anything that supports it.
+2. Optionally attach supporting documents: up to **5 files**, each **PDF, PNG or JPG**, each **no larger than 5 MB**. The dashboard checks size and type before upload.
+3. Click **Send answer**.
+
+Owner, Admin, Member and Finance users can answer. Each inquiry can be answered while it is open; once sent, the panel shows your answer, the number of documents, and **"Waiting for the compliance review"**.
+
+## Timelines
+
+Please answer **within 5 business days** of the request. This is the stated expectation, not an automatic cut-off: the inquiry stays open until the compliance team has reviewed your answer.
+
+## The outcome
+
+After reviewing your answer, the compliance team resolves the inquiry in one of two ways. You are notified by e-mail and the panel shows the outcome and any note:
+
+| Outcome | Meaning |
+| --- | --- |
+| **Cleared** | The payment is in order. Any hold is released. |
+| **Confirmed** | The compliance team confirmed the concern. Any hold is released as well; if funds have to be recovered, that is handled directly with you outside the platform. |
+
+## The hold rule
+
+When an inquiry is opened, the compliance team decides whether to **hold the flagged funds**. By default they do.
+
+- While an inquiry is **open or answered** and funds are held, the USDT credited for that payment is **excluded from your available balance**. It shows as **on hold**, and [payouts](/guides/payouts) can only use the available figure.
+- Only that one payment is held. The rest of your balance is untouched.
+- **Cleared** or **Confirmed** releases the hold. A *confirmed* inquiry does not claw anything back through the platform.
+
+## In the API
+
+The [payment intent](/accept-payments/api-payments) carries an `inquiryStatus` field, so reconciliation jobs can recognise flagged payments. See [the field](/accept-payments/api-payments#the-inquiry-status-field).
