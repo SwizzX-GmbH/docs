@@ -4,9 +4,9 @@
   "name": "Qint",
   "description": "Accept crypto payments. Settle in CHF, EUR, USD or GBP.",
   "colors": {
-    "primary": "#3D5AFE",
-    "light": "#8C9EFF",
-    "dark": "#2A3EB1"
+    "primary": "#3451EB",
+    "light": "#6E86FF",
+    "dark": "#3451EB"
   },
   "logo": {
     "light": "/logo/light.svg",

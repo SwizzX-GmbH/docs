@@ -1,0 +1,29 @@
+/* Qint docs: match the app typography (Inter + JetBrains Mono, same features). */
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Variable.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Mintlify sets --font-paper-mono through a next/font class; an !important
+   custom property on the root wins over it for every code element. */
+:root,
+html,
+body {
+  --font-paper-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  --font-family-mono-custom: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-variant-ligatures: none;
+}
