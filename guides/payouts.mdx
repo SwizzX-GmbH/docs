@@ -30,13 +30,13 @@ The **holding period** is 1–7 days (default 2), set on your account by Qint. R
 
 ## Manual payouts
 
-**Dashboard → Payouts → Withdraw funds.** Choose bank transfer, the payout currency (CHF, EUR, USD or GBP — whichever Qint currently offers, see [currency availability](/accept-payments/api-payments#currency-availability)), the amount in that currency, and an optional note. The dialog shows the live market rate and the USDT that will be sold; the rate is frozen on the payout when you request it, and there is no conversion fee. Requires the Owner, Admin or Finance role.
+**Dashboard → Payouts → Withdraw funds.** Choose the payout type (bank, cash or crypto), the payout currency (CHF, EUR, USD or GBP — whichever Qint currently offers, see [currency availability](/accept-payments/api-payments#currency-availability)), the amount in that currency, and an optional note. The dialog shows the live market rate and the USDT that will be sold; the rate is frozen on the payout when you request it, and there is no conversion fee. Requires the Owner, Admin or Finance role.
 
 | Type | What it means |
 | --- | --- |
 | **Bank** | Transfer to the bank account from your onboarding profile. |
-| **Cash** | Disabled pending written compliance approval; not generally available. |
-| **Crypto** | Requires an explicitly agreed, tested payout arrangement with the execution partner; not a launch-ready self-service workflow. Paid in your [settlement asset](#settlement-asset) only — USDC for EEA merchants, USDT otherwise; a request in the other stablecoin is refused. |
+| **Cash** | Paid out in cash by the execution partner. Available, within a platform-wide daily limit of CHF 200'000 (see below). |
+| **Crypto** | Sent on-chain to one of your **approved** [payout wallets](#payout-wallets) — never to an address typed in at request time. Paid in your [settlement asset](#settlement-asset) only — USDC for EEA merchants, USDT otherwise; a request in the other stablecoin is refused. |
 
 Cash payouts share a platform-wide daily limit of CHF 200'000 (equivalent) per calendar day in Europe/Zurich time, across all merchants and counting every requested, scheduled or executed cash payout of that day. A cash request (or its quote) that would exceed what is left today is refused with HTTP 409 and `code: "cash_daily_limit"`, whose message says how much is still available — request a smaller amount, try again the next day, or choose bank or crypto.
 
@@ -51,6 +51,32 @@ Requested ──► Scheduled ──► Executed
 ```
 
 A payout request that can't reach the payment partner immediately is retried automatically in the background — it stays visible as Requested with a sync-pending marker until confirmed.
+
+## Payout wallets
+
+Crypto payouts are executed through the execution partner's custody (Fireblocks), which only sends to **whitelisted** addresses. You therefore register your wallets in advance, and a crypto payout can only go to a wallet that 24crypto has approved.
+
+1. **Register.** Under **Dashboard → Settings → Payout wallets**, add a wallet: the network (one of the networks of your [settlement asset](#settlement-asset) — Tron, Ethereum or Solana for USDT; Ethereum or Solana for USDC), the address and an optional label. The address format is checked for the network. Adding and removing wallets requires the Owner or Admin role.
+2. **Approval.** Qint forwards the wallet to 24crypto, where it shows as **pending**. A 24crypto operator whitelists the address in Fireblocks and approves it — or rejects it with a note. Owner and Admin users get an e-mail either way ("Payout wallet approved" / "Payout wallet rejected", with the operator's note).
+3. **Pay out.** In **Payouts → Withdraw funds → Crypto**, pick one of your approved wallets. The dialog lists approved wallets only.
+
+| Status | Meaning |
+| --- | --- |
+| **pending** | Registered, waiting for 24crypto to whitelist and approve it. Not usable yet. |
+| **approved** | Whitelisted — crypto payouts can go to it. |
+| **rejected** | Not approved (the note says why). An approved wallet can also be **withdrawn** later and then shows as rejected. |
+| **removed** | You removed it. Removal is final: to use the address again, add it again — it starts as a new pending wallet. |
+
+Payouts already requested are not affected by a later status change.
+
+### Errors
+
+| HTTP | `code` | When | Message |
+| --- | --- | --- | --- |
+| 409 | `wallet_not_whitelisted` | A crypto payout (or its quote) names a wallet that is not approved, or an address that is not one of your approved wallets. The response also carries `walletId` and `walletStatus` when a matching wallet exists. | e.g. "This TRON address isn't an approved payout wallet. Add it under Settings → Payout wallets and wait until 24crypto has approved it — crypto payouts only go to approved wallets." — or, for a wallet still under review, "This payout wallet is still waiting for 24crypto's approval. Crypto payouts only go to approved wallets — check its status under Settings → Payout wallets." |
+| 409 | `wallet_already_registered` | You add an address that is already one of your pending or approved wallets on that network. | "This TRON address is already one of your payout wallets." |
+
+A crypto payout request references its wallet with `payoutWalletId` (the wallet's `pw_…` id); `network` and `destinationAddress` are then taken from the wallet. Requests that send `network` and `destinationAddress` without an id are still accepted, but only when they match an approved wallet.
 
 ## Scheduled payouts
 
