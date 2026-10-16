@@ -38,6 +38,8 @@ The **holding period** is 1–7 days (default 2), set on your account by Qint. R
 | **Cash** | Disabled pending written compliance approval; not generally available. |
 | **Crypto** | Requires an explicitly agreed, tested payout arrangement with the execution partner; not a launch-ready self-service workflow. Paid in your [settlement asset](#settlement-asset) only — USDC for EEA merchants, USDT otherwise; a request in the other stablecoin is refused. |
 
+Cash payouts share a platform-wide daily limit of CHF 200'000 (equivalent) per calendar day in Europe/Zurich time, across all merchants and counting every requested, scheduled or executed cash payout of that day. A cash request (or its quote) that would exceed what is left today is refused with HTTP 409 and `code: "cash_daily_limit"`, whose message says how much is still available — request a smaller amount, try again the next day, or choose bank or crypto.
+
 Qint payouts are **record-and-track**: the payout request is registered with Qint's payment partner for execution, and its status updates flow back into your dashboard automatically. Each payout carries a reference once executed — use it to reconcile against your bank statement.
 
 ### Payout lifecycle
