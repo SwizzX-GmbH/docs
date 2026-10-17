@@ -7,19 +7,20 @@ icon: "wordpress"
 The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checkout. Customers are redirected to Qint's hosted checkout; orders update automatically via [signed webhooks](/webhooks/overview), with a polling fallback in case a webhook is missed.
 
 <Card title="Download qint-payments.zip" icon="download" href="https://qint.ch/downloads/qint-payments.zip">
-  Current version 1.0.3 — a standard WordPress plugin package, installed through WP Admin.
+  Current version 1.0.4 — a standard WordPress plugin package, installed through WP Admin.
 </Card>
 
 **Requirements**
 
 | Component | Requirement |
 | --- | --- |
-| WooCommerce | 8.0 – 10.x (classic and block checkout, with or without HPOS) |
-| WordPress | 6.0+ |
+| WooCommerce | 8.0 – 11.x, tested up to 11.2 (classic and block checkout, with or without HPOS) |
+| WordPress | 6.0+, tested up to 7.1 |
 | PHP | 7.4+ |
 | Store currency | **CHF, EUR, USD or GBP**, while that currency is [enabled on Qint](/accept-payments/api-payments#currency-availability) |
 | Qint account | An [approved](/guides/going-live) merchant account on [dashboard.qint.ch](https://dashboard.qint.ch) |
 | Site | Reachable over **HTTPS** from the public internet (for webhooks) |
+| Order amount | At least **CHF 10** (or the equivalent) per order — see [Minimum order amount](#minimum-order-amount) |
 
 <Steps>
   <Step title="Install the plugin">
@@ -65,14 +66,24 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
   </Step>
 
   <Step title="Create the webhook endpoint">
-    Your site's webhook receiver URL is:
+    Copy the **Webhook URL for this store** from the top of the gateway
+    settings page. The plugin computes it for your site — don't type it by
+    hand. Its form depends on **Settings → Permalinks** in WordPress:
 
-    ```text
-    https://YOURSITE/wp-json/qint/v1/webhook
-    ```
+    | Permalinks | Webhook URL |
+    | --- | --- |
+    | Any structure other than Plain | `https://YOURSITE/wp-json/qint/v1/webhook` |
+    | Plain | `https://YOURSITE/index.php?rest_route=/qint/v1/webhook` |
 
-    (It's also displayed under the "Webhook signing secret" field in the
-    gateway settings.)
+    <Warning>
+    **"Plain" permalinks:** `https://YOURSITE/wp-json/qint/v1/webhook` does
+    **not** work. On Plain permalinks that path serves your homepage with
+    HTTP 200, so the Qint dashboard shows every delivery as delivered while
+    your orders never update. Use the `?rest_route=` URL shown on the
+    settings page (since 1.0.4 the page also shows a warning on Plain
+    permalinks), or switch to any other permalink structure and then update
+    the endpoint URL in the Qint dashboard.
+    </Warning>
 
     1. Qint dashboard → **Developers → Webhooks → Add endpoint** → paste that URL.
     2. Copy the **signing secret** (`whsec_…`) shown on creation — shown **only once**.
@@ -85,10 +96,10 @@ The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checko
     For webhooks to work:
 
     - The site must be reachable over **HTTPS** from the public internet.
-    - WordPress permalinks must not be "Plain" if your host blocks
-      `?rest_route=` (pretty permalinks guarantee `/wp-json/…` works).
-    - Security plugins/WAFs must allow unauthenticated POSTs to
-      `/wp-json/qint/v1/webhook` — the request is authenticated by its
+    - The endpoint URL in the dashboard must be exactly the URL from the
+      settings page (see the permalink table above).
+    - Security plugins/WAFs must allow unauthenticated POSTs to that URL —
+      the request is authenticated by its
       [HMAC signature](/webhooks/verifying-signatures), not by cookies.
   </Step>
 </Steps>
@@ -129,6 +140,15 @@ Since 1.0.3 the plugin follows Qint's currency switches:
 - **API unreachable.** If the list cannot be fetched, the plugin assumes CHF, EUR, USD and GBP are enabled and retries after one minute. Qint still refuses a disabled currency when the intent is created, which is handled as below.
 - **Race at checkout.** If a currency is switched off between the cached check and the order, the customer sees "Crypto payments are not available for orders in GBP at the moment. Please choose another payment method." instead of the raw API error, and the plugin refreshes its cached list.
 
+## Minimum order amount
+
+Every Qint payment must be between **CHF 10 and CHF 100'000** (or the equivalent in EUR, USD or GBP); the API refuses other amounts with `400 amount_out_of_range`. Since 1.0.4 the plugin doesn't offer a method that cannot work:
+
+- **Hidden below the minimum.** When the cart total is below the minimum, the Qint payment method is not shown. On the classic checkout and the order-pay page the customer sees Qint's limits message instead: "Pay with crypto is not available for this order. Payments must be between CHF 10 and CHF 100'000 (or the equivalent). This amount is CHF 5.00." The block checkout hides the method live as the cart total changes.
+- **CHF stores** are judged exactly against CHF 10.
+- **EUR, USD and GBP stores** need Qint's exchange rate, which is not public. The plugin learns it the first time Qint refuses an amount (the refusal reports the CHF equivalent) and keeps it for an hour; from then on small carts hide the method.
+- **Unknown minimum = visible.** Whenever the minimum cannot be determined, the method stays visible and checkout keeps working; if Qint then refuses the amount, the customer sees Qint's own limits message rather than a generic error.
+
 ## What the plugin sends and stores
 
 - Intents are created with `POST /api/v1/intents` using `amount` (order total, 2 decimals), `currency`, a `title` of the form `Order #1001 — Your Shop` and an order-derived `idempotencyKey` (`woo-{site}-{order id}`), so a double-click or a retried checkout never creates two intents. The order-received page is passed as `returnUrl` when the site runs on HTTPS.
@@ -142,7 +162,8 @@ Since 1.0.3 the plugin follows Qint's currency switches:
     Check, in this order: the gateway is enabled; an API key is saved; the
     store currency is CHF, EUR, USD or GBP **and currently enabled on Qint**
     (the gateway settings page lists the enabled currencies and warns if
-    yours is off); the cart total is above zero. On the block checkout,
+    yours is off); the cart total is at least CHF 10 or the equivalent (see
+    [Minimum order amount](#minimum-order-amount)). On the block checkout,
     hard-refresh the page after enabling the gateway.
   </Accordion>
   <Accordion title="Customers see “We could not start the crypto payment”">
@@ -152,12 +173,16 @@ Since 1.0.3 the plugin follows Qint's currency switches:
     API rate limit was hit — it clears by itself.
   </Accordion>
   <Accordion title="Orders stay “Pending payment” after the customer paid">
-    Webhooks are not reaching the site. In the dashboard's **Developers →
-    Webhooks** delivery log check the last error: a 401 means the signing
-    secret in WooCommerce doesn't match the endpoint's; a 404 or 403 usually
-    means a security plugin, WAF or "Plain" permalinks block
-    `/wp-json/qint/v1/webhook`; a connection error means the site isn't
-    publicly reachable over HTTPS. Meanwhile, opening the order-received page
+    Webhooks are not reaching the plugin. First compare the endpoint URL in
+    the dashboard with the **Webhook URL for this store** on the gateway
+    settings page: if your permalinks are "Plain" and the endpoint points at
+    `/wp-json/qint/v1/webhook`, deliveries show as **delivered (HTTP 200)**
+    because WordPress answers with your homepage — replace the URL with the
+    `index.php?rest_route=` form from the settings page. Otherwise check the
+    last error in **Developers → Webhooks**: a 401 means the signing secret
+    in WooCommerce doesn't match the endpoint's; a 404 or 403 usually means a
+    security plugin or WAF blocks the URL; a connection error means the site
+    isn't publicly reachable over HTTPS. Meanwhile, opening the order-received page
     (or the admin order screen) polls the API and reconciles the order.
   </Accordion>
   <Accordion title="The order is “On hold”">
@@ -176,6 +201,8 @@ Since 1.0.3 the plugin follows Qint's currency switches:
 Deleting the plugin from the Plugins screen removes its settings and transients. Order meta (intent ids, statuses) is preserved as part of your order history.
 
 ## Changelog
+
+**1.0.4** — The gateway settings page shows the exact webhook URL for your store, ready to copy, and warns when permalinks are "Plain" (where `/wp-json/qint/v1/webhook` serves the homepage, so deliveries looked successful while orders never updated). The payment method is hidden when the cart is below Qint's minimum (CHF 10 or the equivalent) and the checkout shows Qint's limits message; if the minimum can't be determined the method stays visible. Fixes the payment method not appearing on the block checkout on current WooCommerce versions. Tested up to WordPress 7.1 and WooCommerce 11.2.
 
 **1.0.3** — Respects Qint's currency switches: reads the enabled currencies from `GET /api/v1/public/currencies` (cached 10 minutes, 1 minute after a failed fetch, falling back to CHF/EUR/USD/GBP) and hides the payment method while the store currency is off; the settings page lists the enabled currencies and warns when the store currency is disabled or unsupported; a checkout that races a switch-off shows a clear message instead of the raw API error; the "payment settled" order note adds Qint's fee, the net amount and the settlement asset credited (USDT/USDC) when the API reports them.
 
