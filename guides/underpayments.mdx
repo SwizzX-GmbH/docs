@@ -10,7 +10,7 @@ Crypto payments are push payments: the buyer types (or scans) an amount and send
 
 Each merchant sets an **Accepted underpayment** under **Dashboard → Settings → Payouts**: the largest shortfall, as a share of the payment, that Qint settles without asking you. The default is **0.5 %**; you can choose anything from **0 % to 2 %** (0 % means every shortfall goes to review). Only Owner and Admin users can change it, and the setting shows who set the current value.
 
-A payment short by **no more than** your accepted underpayment:
+A payment short by **no more than** your accepted underpayment counts as **paid in full** — the order or invoice is Paid, and you are not asked to decide. In detail, it:
 
 - **settles** normally (`status: "settled"`) and is flagged **underpaid**;
 - is credited for **the amount actually received**, not the full invoice — the received share of the invoiced amount, less Qint's fee on that received amount;
