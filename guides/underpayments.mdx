@@ -17,7 +17,7 @@ A payment short by **no more than** your accepted underpayment counts as **paid 
 - shows **"Underpaid by x %"** and **Paid** in the transaction detail, and the receipt shows the amount actually paid. A linked invoice is marked **Paid**.
 
 <Note>
-Example: a CHF 100.00 invoice with a 0.5 % accepted underpayment. The buyer's
+Example: a CHF 100.00 invoice with a 0.5 % accepted underpayment, and CHF as your Account Currency. The buyer's
 crypto arrives worth CHF 99.70 (0.3 % short). The payment settles, is flagged
 underpaid by 0.3 %, and your balance is credited CHF 99.70 less the Qint fee on
 CHF 99.70 — the missing CHF 0.30 is not credited.
@@ -52,7 +52,7 @@ policy as [payouts](/guides/payouts).
 
 ## Overpayments
 
-An overpaid payment (more crypto than quoted) **settles normally** and is credited exactly like any other payment — on the **invoiced amount** (or the booked settled amount) less Qint's fee; the excess is not added to your balance. Your integration sees an ordinary `settled` event: there is no overpayment field on the payment intent and no webhook for it.
+An overpaid payment (more crypto than quoted) **settles normally** and is credited exactly like any other payment — on the **invoiced amount** less Qint's fee; the excess is not added to your balance. Your integration sees an ordinary `settled` event: there is no overpayment field on the payment intent and no webhook for it.
 
 Instead, the payment also appears in the dashboard's **review queue** with the reason **overpaid**. It is informational — the payment is already paid. Refund the excess to the buyer off-platform, then **Acknowledge** the item (Owner, Admin or Finance role); it can be resolved once. The CSV export of your payments marks these payments in its `overpaid` column.
 

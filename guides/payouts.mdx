@@ -4,41 +4,37 @@ description: "Balances, the holding period, and getting your money out."
 icon: "building-columns"
 ---
 
-Settled payments accumulate in one balance held in a stablecoin — **USDT**, or **USDC** if your business is registered in the European Economic Area — which you pay out manually or on a schedule in CHF, EUR, USD or GBP. The dashboard shows the balance in the currency you choose. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
-
-## Settlement asset
-
-Your **settlement asset** is the stablecoin your balance is held in:
-
-| Country of registration | Settlement asset | Crypto payouts |
-| --- | --- | --- |
-| A state of the **European Economic Area** — the 27 EU member states, Iceland, Liechtenstein and Norway | **USDC** | USDC only — on Ethereum (ERC-20) or Solana |
-| Anywhere else (including Switzerland and the UK) | **USDT** | USDT only — on Tron (TRC-20), Ethereum (ERC-20) or Solana |
-
-USDT is not authorised under the Markets in Crypto-Assets Regulation (MiCA), which applies across the EEA, so EEA merchants settle in USDC. The asset is set from the country of registration you enter during onboarding. It is shown on **Dashboard → Balances**, under **Settings → Payouts**, and in the API as `creditAsset` on a payment intent ([API payments](/accept-payments/api-payments)). Your customers can still pay in any [accepted asset](/accept-payments/assets-and-networks); only what your balance is held in changes. Fees and bank payouts work the same for both. Qint support can change the asset only once your balance in the current asset has been paid out — funds are never converted between stablecoins by a settings change.
+Settled payments accumulate in one balance in your **[Account Currency](/guides/settlement)** — CHF unless you chose EUR, USD or GBP — which you pay out manually or on a schedule. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
 
 ## Balances
 
-Your balance is kept in your settlement asset (below, "USDT" stands for either). When a payment settles, the invoiced amount minus Qint's fee — or, for a payment settled [underpaid](/guides/underpayments), the amount actually received minus Qint's fee on that amount — is converted into the settlement asset at the market rate of that moment and credited; the payment's detail view and the CSV export show the amount credited, the asset (`credit_asset`) and the rate used. The dashboard displays the balance in your **display currency** (CHF, EUR, USD or GBP, chosen under Settings → Payouts) as a live estimate next to the exact USDT or USDC figure. The balance splits in two:
+Every settled payment is credited to your balance in your Account Currency at the rate fixed when the buyer was quoted: the invoiced amount minus Qint's fee where you bear it — or, for a payment settled [underpaid](/guides/underpayments), the amount actually received minus Qint's fee on that amount. How the credit is computed is explained in [settlement and your Account Currency](/guides/settlement). The payment's detail view and the CSV export show the amount credited (`credit_amount`), its currency (`credit_currency`) and the rate (`credit_rate`).
+
+The balance figure in your Account Currency is exact. The dashboard can also show it in a **display currency** of your choice; that second figure is indicative, at the live rate. The balance splits in two:
 
 | Bucket | Meaning |
 | --- | --- |
 | **Pending** | Funds from payments settled within the holding period. Not yet withdrawable. |
 | **Available** | Funds past the holding period, minus everything reserved by non-cancelled payouts. Withdrawable. |
 
-The **holding period** is 1–7 days (default 2), set on your account by Qint. Requested and scheduled payouts reserve the USDT they need from the available balance immediately — you can never request more than is available.
+The **holding period** is 1–7 days (default 2), set on your account by Qint. Requested and scheduled payouts reserve the amount they need from the available balance immediately, in your Account Currency — you can never request more than is available.
 
 ## Manual payouts
 
-**Dashboard → Payouts → Withdraw funds.** Choose the payout type (bank, cash or crypto), the payout currency (CHF, EUR, USD or GBP — whichever Qint currently offers, see [currency availability](/accept-payments/api-payments#currency-availability)), the amount in that currency, and an optional note. The dialog shows the live market rate and the USDT that will be sold; the rate is frozen on the payout when you request it, and there is no conversion fee. Requires the Owner, Admin or Finance role.
+**Dashboard → Payouts → Withdraw funds.** Choose the payout type, the payout currency (CHF, EUR, USD or GBP — whichever Qint currently offers, see [currency availability](/accept-payments/api-payments#currency-availability)), the amount in that currency, and an optional note. Requires the Owner, Admin or Finance role.
+
+- **In your Account Currency:** no conversion. The amount is debited from your balance as it is.
+- **In another currency:** the amount is converted at the market rate at the time of your request. The dialog shows the rate and the amount that will be debited from your balance; the rate is fixed on the payout when you request it. There is **no conversion fee**: the [payout fees](#payout-fees) of the price sheet are the only charge.
+
+The dashboard's payout quote (`GET /api/v1/merchant/payouts/quote`, signed-in session) carries these figures in its `fx` block: `sourceAmount` (what the payout debits, in your Account Currency), `available` (your available balance), `currency` (your Account Currency), `sourceRate` (payout-currency units per 1 Account Currency unit, `1` when they are the same) and `asOf` (the time of the rate).
 
 | Type | What it means |
 | --- | --- |
 | **Bank** | Transfer to the bank account from your onboarding profile. |
 | **Cash** | Paid out in cash by the execution partner. Available, within a platform-wide daily limit of CHF 200'000 (see below). |
-| **Crypto** | Sent on-chain to one of your **approved** [payout wallets](#payout-wallets) — never to an address typed in at request time. Paid in your [settlement asset](#settlement-asset) only — USDC for EEA merchants, USDT otherwise; a request in the other stablecoin is refused. |
+| **Crypto** | Not offered at launch. The dashboard shows it as not available, and a request is refused with HTTP 409 and `code: "payout_method_disabled"`. See [payout wallets](#payout-wallets). |
 
-Cash payouts share a platform-wide daily limit of CHF 200'000 (equivalent) per calendar day in Europe/Zurich time, across all merchants and counting every requested, scheduled or executed cash payout of that day. A cash request (or its quote) that would exceed what is left today is refused with HTTP 409 and `code: "cash_daily_limit"`, whose message says how much is still available — request a smaller amount, try again the next day, or choose bank or crypto.
+Cash payouts share a platform-wide daily limit of CHF 200'000 (equivalent) per calendar day in Europe/Zurich time, across all merchants and counting every requested, scheduled or executed cash payout of that day. A cash request (or its quote) that would exceed what is left today is refused with HTTP 409 and `code: "cash_daily_limit"`, whose message says how much is still available — request a smaller amount, try again the next day, or choose a bank payout.
 
 Qint payouts are **record-and-track**: the payout request is registered with Qint's payment partner for execution, and its status updates flow back into your dashboard automatically. Each payout carries a reference once executed — use it to reconcile against your bank statement.
 
@@ -54,9 +50,13 @@ A payout request that can't reach the payment partner immediately is retried aut
 
 ## Payout wallets
 
-Crypto payouts are executed through the execution partner's custody (Fireblocks), which only sends to **whitelisted** addresses. You therefore register your wallets in advance, and a crypto payout can only go to a wallet that 24crypto has approved.
+<Note>
+Crypto payouts are **not offered at launch**. The payout wallet flow below is kept for a later date and may be hidden in the dashboard until then; while crypto payouts are not offered, a crypto payout request is refused.
+</Note>
 
-1. **Register.** Under **Dashboard → Settings → Payout wallets**, add a wallet: the network (one of the networks of your [settlement asset](#settlement-asset) — Tron, Ethereum or Solana for USDT; Ethereum or Solana for USDC), the address and an optional label. The address format is checked for the network. Adding and removing wallets requires the Owner or Admin role.
+When crypto payouts are offered, the amount is entered in your Account Currency and converted at the market rate at the time of the request. Crypto payouts are executed through the execution partner's custody (Fireblocks), which only sends to **whitelisted** addresses. You therefore register your wallets in advance, and a crypto payout can only go to a wallet that 24crypto has approved.
+
+1. **Register.** Under **Dashboard → Settings → Payout wallets**, add a wallet: the network (Tron, Ethereum or Solana, as offered for the payout asset), the address and an optional label. The address format is checked for the network. Adding and removing wallets requires the Owner or Admin role.
 2. **Approval.** Qint forwards the wallet to 24crypto, where it shows as **pending**. A 24crypto operator whitelists the address in Fireblocks and approves it — or rejects it with a note. Owner and Admin users get an e-mail either way ("Payout wallet approved" / "Payout wallet rejected", with the operator's note).
 3. **Pay out.** In **Payouts → Withdraw funds → Crypto**, pick one of your approved wallets. The dialog lists approved wallets only.
 
@@ -95,7 +95,7 @@ Prefer a standing sweep? The payout schedule on **Dashboard → Payouts** offers
 | Weekly | Mondays |
 | Monthly | The 1st of the month |
 
-When due, Qint automatically creates one **Bank** payout of the full available balance, converted into your schedule currency (or your bank currency when none is set) — provided it's at least **10.00** in that currency. On the payout routes with a minimum (see [Fees](#fees)), what happens below the equivalent of **CHF 5'000** depends on whether you have set a [minimum amount for automatic payouts](#minimum-amount-for-automatic-payouts):
+When due, Qint automatically creates one **Bank** payout of the full available balance in your schedule currency (or your bank currency when none is set, else your Account Currency), converted at the market rate of that moment only when it differs from your Account Currency — provided it's at least **10.00** in that currency. On the payout routes with a minimum (see [Fees](#fees)), what happens below the equivalent of **CHF 5'000** depends on whether you have set a [minimum amount for automatic payouts](#minimum-amount-for-automatic-payouts):
 
 - **No minimum set:** the scheduled payout waits until the balance is worth the equivalent of CHF 5'000 and is free. It never pays the early-payout fee; the balance simply accumulates until it reaches the threshold.
 - **Minimum set:** the scheduled payout goes out as soon as the balance reaches your minimum, and a payout below the equivalent of CHF 5'000 is charged the CHF 25 early-payout fee of the price sheet, exactly as a manual payout of the same amount would be.
@@ -104,7 +104,7 @@ CHF payouts to a Swiss bank account have no threshold and are always free: they 
 
 ### Minimum amount for automatic payouts
 
-You can set a **minimum balance for automatic payouts** under **Dashboard → Payouts**, in the asset your balance is held in (USDT or USDC). A scheduled payout then runs as soon as your available balance reaches that amount; below it, nothing is paid out that period and the balance is checked again on the next due day. A value below 10.00 does not lower the 10.00 floor.
+You can set a **minimum balance for automatic payouts** under **Dashboard → Payouts**, in your Account Currency (two decimal places). A scheduled payout then runs as soon as your available balance reaches that amount; below it, nothing is paid out that period and the balance is checked again on the next due day. A value below 10.00 does not lower the 10.00 floor.
 
 If you set a minimum balance, automatic payouts no longer wait for the CHF 5'000 threshold: on the routes with a minimum (EUR to a Swiss bank account, CHF to a foreign bank account, other foreign currencies), a payout below the equivalent of CHF 5'000 is charged **CHF 25**, deducted from the payout, as set out in the [price sheet](https://qint.ch/pricing#payout-fees). Setting the minimum counts as your consent to that fee; the payout row shows the fee and the net amount like any early payout. CHF payouts to a Swiss bank account are always free.
 
@@ -112,7 +112,7 @@ Leave the field empty for no minimum: automatic payouts on the routes with a min
 
 ## Fees
 
-Qint's service fee is a small **conversion spread** taken when a payment is credited to your balance — there are no fee lines on invoices or checkout, and converting your balance to CHF, EUR, USD or GBP at payout carries no additional fee. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.
+Qint's service fee is a small **conversion spread** (0.5 %) taken when a payment is credited to your balance — there are no fee lines on invoices or checkout, and a payout in a currency other than your Account Currency carries no conversion fee. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.
 
 **Underpayment tolerance:** 0.5 % by default, up to 2 % at your choice (Settings → Payouts). A crypto payment short by no more than the tolerance counts as paid in full and is credited on the amount received — see [underpayments](/guides/underpayments). The tolerance is listed with the fees on [qint.ch/pricing](https://qint.ch/pricing#underpayment-tolerance).
 

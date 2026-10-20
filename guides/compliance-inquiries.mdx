@@ -15,7 +15,7 @@ When an inquiry is opened on a payment:
 - The merchant's **Owner and Admin** users receive an e-mail with the subject **"Information requested about a payment"**. It names the payment, the amount and the reason for the request.
 - The payment shows an **Information requested** badge in **Dashboard → Transactions**, and its detail page gets an **Information requested** panel with the reason and the date it was raised.
 - The Dashboard home page shows a notice while any inquiry is open.
-- If funds are on hold, the balance tile shows a line such as **"On hold 120.00 USDT (1 payment)"** (USDC for merchants that settle in USDC).
+- If funds are on hold, the balance tile shows a line such as **"On hold CHF 120.00 (1 payment)"**, in your [Account Currency](/guides/settlement).
 
 <Note>
 There is no webhook event for inquiries yet. You learn about them through
@@ -50,7 +50,7 @@ After reviewing your answer, the compliance team resolves the inquiry in one of 
 
 When an inquiry is opened, the compliance team decides whether to **hold the flagged funds**. By default they do.
 
-- While an inquiry is **open or answered** and funds are held, the USDT (or USDC) credited for that payment is **excluded from your available balance**. It shows as **on hold**, and [payouts](/guides/payouts) can only use the available figure.
+- While an inquiry is **open or answered** and funds are held, the amount credited for that payment is **excluded from your available balance**. It shows as **on hold**, and [payouts](/guides/payouts) can only use the available figure.
 - Only that one payment is held. The rest of your balance is untouched.
 - **Cleared** or **Confirmed** releases the hold. A *confirmed* inquiry does not claw anything back through the platform.
 

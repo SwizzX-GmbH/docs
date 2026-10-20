@@ -6,6 +6,10 @@ icon: "book"
 
 The Qint merchant API is a small, server-to-server REST API around one resource: the **payment intent**. Create one, redirect the buyer to its `checkoutUrl`, and learn the outcome via [webhooks](/webhooks/overview) or reads.
 
+<Warning>
+**20 October 2026:** the payment intent's credit fields changed. `creditUsdt` and `creditAsset` are gone, `creditAmount` and `creditCurrency` are new, and `creditRate` has a new meaning. See the [breaking change note](#breaking-change-20-october-2026).
+</Warning>
+
 ## Base URL
 
 ```text
@@ -83,6 +87,24 @@ The API is rate limited per client. On `429`, retry with exponential backoff. Cr
 - **Timestamps** are ISO 8601 with offset.
 - **Pagination** on list endpoints: `page` (1-based) and `pageSize` (1–100, default 20); responses carry `items`, `total`, `page`, `pageSize`.
 - **Ids are prefixed**: intents `pi_…`, payment links `pl_…`, invoices `inv_…`.
+
+## Breaking change 20 October 2026
+
+Merchant balances are now kept in fiat, in each merchant's [Account Currency](/guides/settlement) (CHF, EUR, USD or GBP; CHF by default), instead of a stablecoin. Every payment is credited in that currency at the rate fixed when the buyer is quoted. The base path stays `/api/v1`; the change affects the payment intent and the `payment.status` webhook.
+
+**Payment intents** (`POST /api/v1/intents`, `GET /api/v1/intents`, `GET /api/v1/intents/{id}`):
+
+- **Removed:** `creditUsdt` and `creditAsset`.
+- **Added:** `creditAmount` (what the payment added to your balance, 2 decimal places) and `creditCurrency` (your Account Currency at the time of the quote).
+- **Changed meaning:** `creditRate` is now units of `creditCurrency` per 1 unit of the invoice `currency`, `1` when they match. It used to be fiat per stablecoin unit.
+- **Changed:** `feeAmount` and `netAmount` (still in `currency`) are computed on the quote, so they always agree with the credit. A `settledAmount` booked later no longer changes them.
+- All three credit fields are `null` until the payment is credited, and on payments settled before 20 October 2026.
+
+**Webhook** `payment.status`: `creditAmount`, `creditCurrency` and `creditRate` are added (filled on the `settled` event, `null` otherwise). The change is additive; see [credit fields](/webhooks/events#credit-fields).
+
+**SDKs:** `@qint/node` 0.3.0, the .NET package `Qint` 0.3.0, `qint-sdk` for Python 0.3.0 and `github.com/SwizzX-GmbH/qint-go` v0.4.0 follow the change (`credit_amount` and `credit_currency` in Python, `CreditAmount` and `CreditCurrency` in .NET and Go). The WooCommerce plugin 1.0.5 shows the credit in the order note.
+
+**Dashboard:** the balance and the Account Currency endpoints are listed under [Dashboard](/api-reference/get-balance) in this reference. Crypto payouts are not offered at launch.
 
 ## Endpoints
 

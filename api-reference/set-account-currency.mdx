@@ -1,0 +1,14 @@
+---
+title: "Change the Account Currency"
+openapi: "openapi.yaml PUT /api/v1/merchant/account-currency"
+playground: "none"
+---
+
+<Note>
+A dashboard endpoint: it uses the signed-in dashboard session, not an API key, and requires the Owner or Admin role. The currency can change only while the balance is empty; see [settlement and your Account Currency](/guides/settlement#choosing-your-account-currency).
+</Note>
+
+| HTTP | `code` | When |
+| --- | --- | --- |
+| 400 | `invalid_account_currency` | The currency is not one of CHF, EUR, USD and GBP, or Qint has switched it off. |
+| 409 | `account_currency_ledger_not_empty` | The balance is not empty: a payout is requested or scheduled, a payment is quoted and not settled, a settled payment is waiting for its credit, a payment is on hold, something is pending, or 0.01 or more is available. `detail` names the reason. |

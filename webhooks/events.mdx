@@ -27,6 +27,9 @@ Sent to every active endpoint on **each status transition** of a payment intent 
   "paymentLinkId": null,
   "reversed": false,
   "reversedAt": null,
+  "creditAmount": 49.65,
+  "creditCurrency": "CHF",
+  "creditRate": 1,
   "occurredAt": "2026-07-08T09:24:03+00:00"
 }
 ```
@@ -48,9 +51,22 @@ Sent to every active endpoint on **each status transition** of a payment intent 
 | `paymentLinkId` | string \| null | Set when the payment came through a [payment link](/accept-payments/payment-links) (`pl_…`). |
 | `reversed` | boolean | See [reversal fields](#reversal-fields). |
 | `reversedAt` | string \| null | See [reversal fields](#reversal-fields). |
+| `creditAmount` | number \| null | See [credit fields](#credit-fields). |
+| `creditCurrency` | string \| null | See [credit fields](#credit-fields). |
+| `creditRate` | number \| null | See [credit fields](#credit-fields). |
 | `occurredAt` | string (ISO 8601) | When the transition happened. |
 
-The event does **not** carry the settlement figures (`feeAmount`, `netAmount`, `settledAmount`, `creditUsdt`, `creditRate`, `creditAsset`). Read them from [`GET /api/v1/intents/{id}`](/api-reference/get-intent) after a `settled` event.
+### Credit fields
+
+The `settled` event says what the payment added to your balance. The three fields were added on 20 October 2026; they are `null` on every other status and on payments settled before that date.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `creditAmount` | number \| null | The amount credited to your balance, 2 decimal places, in `creditCurrency`. |
+| `creditCurrency` | string \| null | Your [Account Currency](/guides/settlement) at the time of the quote: `CHF`, `EUR`, `USD` or `GBP`. |
+| `creditRate` | number \| null | Units of `creditCurrency` per 1 unit of `currency`, fixed when the buyer was quoted. `1` when the two currencies match. |
+
+The event does **not** carry `feeAmount`, `netAmount` or `settledAmount`. Read them from [`GET /api/v1/intents/{id}`](/api-reference/get-intent) after a `settled` event.
 
 <Tip>
 Fulfil on `status: "settled"` and nothing else. `confirmed` means the
@@ -176,7 +192,7 @@ Verify it like any event, then return 2xx and ignore it.
 
 ## Overpayments and late deposits
 
-There is **no overpayment field or event**. When a buyer sends more than the quoted amount, the payment settles normally and you receive the usual `settled` event. It is credited exactly like a normal payment — on the invoiced amount (or the booked `settledAmount`) less Qint's fee — so the excess is not added to your balance. Qint puts the payment in your dashboard's **review queue** (reason "overpaid") so you can refund the excess to the buyer off-platform and then acknowledge the item. The CSV export of your payments also has an `overpaid` column. See [underpayments](/guides/underpayments#overpayments).
+There is **no overpayment field or event**. When a buyer sends more than the quoted amount, the payment settles normally and you receive the usual `settled` event. It is credited exactly like a normal payment — on the invoiced amount less Qint's fee — so the excess is not added to your balance. Qint puts the payment in your dashboard's **review queue** (reason "overpaid") so you can refund the excess to the buyer off-platform and then acknowledge the item. The CSV export of your payments also has an `overpaid` column. See [underpayments](/guides/underpayments#overpayments).
 
 A deposit that arrives after the payment window has expired also goes to the review queue. The intent stays `expired` until you decide; accepting it sends the normal `settled` event. Do not infer a successful payment from the presence of a deposit alone: use the API status and the review outcome.
 

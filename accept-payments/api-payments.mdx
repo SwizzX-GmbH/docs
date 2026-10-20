@@ -106,13 +106,13 @@ intent = res.json()  # res.status_code: 201 new, 200 idempotent replay
   "settledAmount": null,
   "receivedAmount": null,
   "underpaidBps": null,
-  "creditUsdt": null,
-  "creditRate": null,
-  "creditAsset": null
+  "creditAmount": null,
+  "creditCurrency": null,
+  "creditRate": null
 }
 ```
 
-Once a payment settles, the same object also tells you what you were credited: `feeAmount` (Qint's fee) and `netAmount` (what reaches your balance), both in `currency` and both `null` until the status is `settled`; `settledAmount` is the fiat amount the payment partner realised, booked after settlement (`null` until then — once set, fee and net are computed on it instead of `amount`); `creditUsdt`, `creditRate` and `creditAsset` (the stablecoin credited, the fiat-per-unit rate at that moment, and which stablecoin it is: `USDT`, or `USDC` for merchants registered in the EEA — see [settlement asset](/guides/payouts#settlement-asset); the `creditUsdt` name predates USDC). If the buyer paid slightly short within your accepted underpayment, `underpaid` is `true`, `receivedAmount` is the fiat amount actually paid and `underpaidBps` how short it was (100 = 1 %); the fee and the net are computed on `receivedAmount`. `reversed` / `reversedAt` are set when the execution partner reversed a settled payment — treat it as not paid.
+Once a payment settles, the same object also tells you what you were credited. `feeAmount` (Qint's fee) and `netAmount` (the invoice amount less that fee) are in `currency`, computed on the quote, and `null` until the status is `settled`. `creditAmount`, `creditCurrency` and `creditRate` are what the payment added to your balance: `creditAmount` (2 decimal places) in `creditCurrency`, your [Account Currency](/guides/settlement) at the time of the quote, at `creditRate` = units of `creditCurrency` per 1 unit of `currency` (`1` when they match), fixed when the buyer was quoted. All three are `null` until the payment is credited, and on payments settled before 20 October 2026. `settledAmount` is the fiat amount the payment partner realised, booked after settlement (`null` until then); it is for information and changes neither the fee, the net nor the credit. If the buyer paid slightly short within your accepted underpayment, `underpaid` is `true`, `receivedAmount` is the fiat amount actually paid and `underpaidBps` how short it was (100 = 1 %); the fee, the net and the credit are computed on `receivedAmount`. `reversed` / `reversedAt` are set when the execution partner reversed a settled payment — treat it as not paid.
 
 Field rules ([full reference](/api-reference/create-intent)):
 

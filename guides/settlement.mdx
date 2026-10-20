@@ -1,0 +1,69 @@
+---
+title: "Settlement and your Account Currency"
+description: "How a crypto payment becomes a fixed fiat credit in the currency you choose."
+icon: "scale-balanced"
+---
+
+Your customers pay in crypto; your balance is in fiat. Qint keeps **one balance** for your merchant account, in your **Account Currency**: CHF, EUR, USD or GBP. Unless you choose otherwise, it is **CHF**.
+
+Every payment is credited to that balance in the Account Currency, at the exchange rate fixed when the buyer is quoted at checkout. From that moment you carry no crypto price risk and no exchange-rate risk.
+
+## Choosing your Account Currency
+
+You choose the Account Currency during onboarding, and an Owner or Admin can change it later in the dashboard settings. Only currencies that Qint currently offers can be chosen (see [currency availability](/accept-payments/api-payments#currency-availability)).
+
+The Account Currency can be changed **only while your balance is empty**. That means all of the following:
+
+- nothing is available (anything below 0.01 counts as empty);
+- nothing is pending in the [holding period](/guides/payouts#balances) or on hold under a [compliance inquiry](/guides/compliance-inquiries);
+- no settled payment is still waiting for its credit;
+- no payment has been quoted to a buyer and is still unsettled;
+- no payout is requested or scheduled.
+
+Funds are never converted by a settings change. To switch with money on the balance, [pay it out](/guides/payouts) first, then change the currency. A refused change says what is still blocking it.
+
+## How a payment is credited
+
+1. **You invoice in any supported currency.** A payment link, an invoice or an [API intent](/accept-payments/api-payments) is priced in CHF, EUR, USD or GBP. The invoice currency does not have to match your Account Currency.
+2. **The rate is fixed at the quote.** When the buyer picks a crypto asset at checkout, Qint quotes the crypto amount and, at the same moment, fixes the rate from the invoice currency into your Account Currency. When the two are the same, the rate is exactly 1. If the buyer goes back and picks another asset, the payment is quoted again and the new rate replaces the old one: the last quote before payment is the one that counts.
+3. **The payment settles and is credited.** The credit is the invoice amount less Qint's fee of 0.5 %, where you bear it, converted at the quote rate and rounded to the cent. When your customer pays the fee on top, the full invoice amount is converted. The credited amount never changes afterwards.
+
+**Example.** Your Account Currency is CHF and you invoice EUR 100.00. You bear the fee, so the net is EUR 99.50. At the quote the rate was 0.9389 CHF per EUR, so your balance is credited CHF 93.42.
+
+Two cases differ from the invoice amount:
+
+- **Underpaid within your tolerance.** A payment short by no more than your accepted underpayment is credited on the amount actually received, less the fee on that amount, at the same quote rate. See [underpayments](/guides/underpayments).
+- **Overpaid.** The payment is credited on the invoiced amount; the excess is not added to your balance.
+
+A payment the execution partner reverses after settlement leaves your balance again.
+
+## No crypto or exchange-rate risk after the quote
+
+From the moment the buyer is quoted, the figure you will be credited is fixed. The execution partner engaged by SwizzX converts the crypto it receives into fiat at its own risk and at its own discretion as to timing and manner. If the crypto price or the exchange rate moves after the quote, your credit does not.
+
+## Where you see the credit
+
+| Where | Fields |
+| --- | --- |
+| [Payment intents](/api-reference/get-intent) (`GET /api/v1/intents/{id}`) | `creditAmount` (2 decimal places), `creditCurrency` (your Account Currency at the quote) and `creditRate` (units of `creditCurrency` per 1 unit of the invoice `currency`, 1 when they match). All three are `null` until the payment is credited. |
+| [`payment.status` webhook](/webhooks/events#credit-fields) | The same three fields, filled on the `settled` event. |
+| Dashboard payment detail | The amount credited and, when the currencies differ, the rate. |
+| Payments CSV export | `credit_amount`, `credit_rate`, `credit_currency`. |
+
+`feeAmount` and `netAmount` on a payment intent are in the invoice `currency` and are computed on the quote, so they always agree with the credit.
+
+## Display currency
+
+Besides the Account Currency, the dashboard can show your balance in a second currency of your choice. That figure is **indicative**: it uses the live rate, carries the time of that rate, and never moves money. The exact figure is always the one in your Account Currency. When the display currency is the Account Currency, no conversion is shown.
+
+## Getting the money out
+
+Your balance splits into pending and available funds by the holding period. [Payouts](/guides/payouts) go to your bank account in your Account Currency, or in another supported currency converted at the market rate at the time of the request, with no conversion fee beyond the price sheet. Crypto payouts are not offered at launch.
+
+## Dashboard endpoints
+
+The dashboard reads and changes these settings through three endpoints, described in the API reference: [get the balance](/api-reference/get-balance), [get the Account Currency](/api-reference/get-account-currency) and [change the Account Currency](/api-reference/set-account-currency). They use the dashboard's signed-in session; API keys are not accepted.
+
+<Note>
+Before 20 October 2026, balances were held in a stablecoin. Payments settled before that date carry no `creditAmount`, and their former stablecoin fields (`creditUsdt`, `creditAsset`) are no longer returned. See the [breaking change note](/api-reference/introduction#breaking-change-20-october-2026).
+</Note>

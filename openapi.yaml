@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Qint Merchant API
-  version: "1.0"
+  version: "1.1"
   description: |
     The Qint merchant API is a server-to-server API for creating and reading
     **payment intents**. You create an intent, redirect the buyer to the returned
@@ -25,6 +25,21 @@ info:
     with `429 Too Many Requests` — back off and retry. Intent creation is
     retry-safe: the required `idempotencyKey` makes a retried request return
     the original intent instead of creating a duplicate.
+
+    ### Settlement
+    Every payment is credited to the merchant's balance in its **Account
+    Currency** (CHF, EUR, USD or GBP; CHF by default) at the rate fixed when
+    the buyer is quoted. Since 20 October 2026 a payment intent reports the
+    credit as `creditAmount`, `creditCurrency` and `creditRate`; the former
+    stablecoin fields `creditUsdt` and `creditAsset` are no longer returned,
+    and `creditRate` changed meaning. See
+    [the breaking change note](https://docs.qint.ch/api-reference/introduction#breaking-change-20-october-2026).
+
+    ### Dashboard endpoints
+    The endpoints tagged **Dashboard** serve the Qint dashboard. They
+    authenticate with the dashboard's signed-in session, not with an API key,
+    and are documented so that the balance and the Account Currency rules are
+    described in one place.
   contact:
     name: Qint support
     email: support@qint.ch
@@ -40,6 +55,10 @@ tags:
     description: Create standalone payments and read their status.
   - name: Currencies
     description: Which fiat currencies Qint currently offers for new payments.
+  - name: Dashboard
+    description: >
+      The merchant balance and the Account Currency, as used by the Qint
+      dashboard. Signed-in dashboard session only; API keys are not accepted.
 paths:
   /api/v1/intents:
     post:
@@ -303,7 +322,161 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /api/v1/merchant/balances:
+    get:
+      operationId: getBalance
+      tags: [Dashboard]
+      summary: Get the balance
+      security:
+        - dashboardSession: []
+      description: |
+        The merchant's balance in its Account Currency. Nothing is stored as a
+        balance: the figures are computed on demand from credited payments and
+        payouts that are not cancelled.
+
+        - `available`, `pending` and `onHold` are exact, in `currency` (the
+          Account Currency).
+        - `pending` holds credits still inside the holding period
+          (`holdingDays`). `onHold` holds credits of payments under an open
+          compliance inquiry; they are excluded from `available` and `pending`.
+        - `available` is net of every requested, scheduled or executed payout.
+        - `display` re-expresses the balance in the merchant's display
+          currency. It is **indicative** (live rate, `asOf`) and never moves
+          money. It is `null` when the display currency is the Account
+          Currency.
+        - `rates` gives, for each supported currency, the units per 1 Account
+          Currency unit (indicative; the Account Currency itself at `1`).
+
+        Any member of the merchant account can read it. Users with access to
+        several merchant accounts select one with the `X-Merchant-Id` header.
+      parameters:
+        - $ref: "#/components/parameters/MerchantIdHeader"
+      responses:
+        "200":
+          description: The balance.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Balance"
+        "401":
+          $ref: "#/components/responses/NotSignedIn"
+        "403":
+          $ref: "#/components/responses/NoMerchantAccess"
+  /api/v1/merchant/account-currency:
+    get:
+      operationId: getAccountCurrency
+      tags: [Dashboard]
+      summary: Get the Account Currency
+      security:
+        - dashboardSession: []
+      description: |
+        The currency the merchant's balance is kept in, who set it, and whether
+        it can be changed right now. `changeable` is `false` while the balance
+        is not empty; `changeBlocker` then says why. `currencies` lists the
+        codes that can be chosen now.
+
+        Any member of the merchant account can read it.
+      parameters:
+        - $ref: "#/components/parameters/MerchantIdHeader"
+      responses:
+        "200":
+          description: The Account Currency.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountCurrencySettings"
+        "401":
+          $ref: "#/components/responses/NotSignedIn"
+        "403":
+          $ref: "#/components/responses/NoMerchantAccess"
+        "404":
+          description: Merchant not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    put:
+      operationId: setAccountCurrency
+      tags: [Dashboard]
+      summary: Change the Account Currency
+      security:
+        - dashboardSession: []
+      description: |
+        Sets the Account Currency to `CHF`, `EUR`, `USD` or `GBP`. Requires the
+        **Owner** or **Admin** role.
+
+        The change is allowed **only while the balance is empty**: no payout
+        requested or scheduled, no payment quoted to a buyer and not yet
+        settled, no settled payment waiting for its credit, nothing on hold,
+        nothing pending, and less than 0.01 available. Otherwise the request is
+        refused with `409` and `code: account_currency_ledger_not_empty`; the
+        `detail` names what is blocking it. Funds are never converted by a
+        settings change: pay the balance out first.
+
+        A currency Qint does not offer, or has switched off, is refused with
+        `400` and `code: invalid_account_currency`. Re-sending the current
+        currency always succeeds.
+      parameters:
+        - $ref: "#/components/parameters/MerchantIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountCurrencyRequest"
+            example:
+              currency: EUR
+      responses:
+        "200":
+          description: The Account Currency after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountCurrencySettings"
+        "400":
+          description: "The currency is not offered (`code: invalid_account_currency`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                title: An error occurred while processing your request.
+                status: 400
+                detail: "GBP is currently disabled on Qint. accountCurrency must be one of: CHF, EUR, USD."
+                code: invalid_account_currency
+        "401":
+          $ref: "#/components/responses/NotSignedIn"
+        "403":
+          $ref: "#/components/responses/NoMerchantAccess"
+        "404":
+          description: Merchant not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: "The balance is not empty (`code: account_currency_ledger_not_empty`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                title: An error occurred while processing your request.
+                status: 409
+                detail: "The account currency can't change while the CHF ledger is not empty. 120.50 CHF is still available — pay it out first."
+                code: account_currency_ledger_not_empty
 components:
+  parameters:
+    MerchantIdHeader:
+      name: X-Merchant-Id
+      in: header
+      required: false
+      description: >
+        The merchant account to act on, for users with access to more than
+        one. Not needed when the user belongs to a single merchant account.
+      schema:
+        type: string
+        format: uuid
   securitySchemes:
     bearerAuth:
       type: http
@@ -318,6 +491,13 @@ components:
       description: >
         Alternative to the Authorization header — send the same `qk_live_…`
         key as `X-Api-Key`.
+    dashboardSession:
+      type: apiKey
+      in: cookie
+      name: qint_session
+      description: >
+        The signed-in session of the Qint dashboard (dashboard.qint.ch). Only
+        the Dashboard endpoints use it; API keys are not accepted there.
   responses:
     BadRequest:
       description: >
@@ -345,6 +525,16 @@ components:
         application/problem+json:
           schema:
             $ref: "#/components/schemas/Problem"
+    NotSignedIn:
+      description: No signed-in dashboard session.
+    NoMerchantAccess:
+      description: >
+        The signed-in user is not a member of this merchant account, or (for
+        a change) lacks the required role.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   schemas:
     CurrencyList:
       type: object
@@ -363,14 +553,14 @@ components:
               enabled:
                 type: boolean
                 description: Whether the currency is offered for new payments right now.
-    SettlementAsset:
+    AccountCurrency:
       type: string
-      enum: [USDT, USDC]
+      enum: [CHF, EUR, USD, GBP]
       description: >
-        The stablecoin a merchant's balance is held in. Merchants registered in
-        the European Economic Area (EU-27, Iceland, Liechtenstein, Norway) settle in `USDC` (USDT is not authorised under
-        MiCA); all other merchants settle in `USDT`. Decided by the country of
-        registration at onboarding; Qint support can change it.
+        The fiat currency a merchant's balance is kept in. Chosen by the
+        merchant (CHF unless it chooses otherwise); it can change only while
+        the balance is empty. Every payment is credited in it at the rate fixed
+        when the buyer was quoted.
     IntentStatus:
       type: string
       description: |
@@ -400,10 +590,12 @@ components:
           type: string
           enum: [CHF, EUR, USD, GBP]
           description: >
-            Settlement currency. One of `CHF`, `EUR`, `USD` or `GBP`, and only
+            Invoice currency. One of `CHF`, `EUR`, `USD` or `GBP`, and only
             while Qint offers it: a currency switched off for new payments is
             refused with `400` and no `code` (check
-            `GET /api/v1/public/currencies` first).
+            `GET /api/v1/public/currencies` first). It need not match your
+            Account Currency: the payment is credited in your Account Currency
+            at the rate fixed when the buyer is quoted.
         title:
           type: string
           description: >
@@ -445,7 +637,10 @@ components:
         currency:
           type: string
           enum: [CHF, EUR, USD, GBP]
-          description: The settlement currency.
+          description: >
+            The invoice currency. `amount`, `feeAmount`, `netAmount`,
+            `settledAmount` and `receivedAmount` are in it; the credit to your
+            balance is in `creditCurrency`.
         title:
           type: [string, "null"]
           description: The title passed at creation, if any.
@@ -518,28 +713,27 @@ components:
         feeAmount:
           type: [number, "null"]
           description: >
-            Qint's fee deducted from your credit for this payment, in
-            `currency`. `0` when the buyer paid the fee on top and the
-            realised amount is not booked yet. `null` until `status` is
-            `settled`. Computed from the current figures, so it can change
-            once `settledAmount` is booked.
+            Qint's fee deducted for this payment, in `currency`. `0` when the
+            buyer paid the fee on top. Computed on the quote (on
+            `receivedAmount` for a payment settled underpaid), so it agrees
+            with the credit and does not change afterwards. `null` until
+            `status` is `settled`.
           examples: [0.25]
         netAmount:
           type: [number, "null"]
           description: >
-            What your balance is credited for this payment, in `currency`:
-            the credit basis (`settledAmount` once booked, otherwise `amount`;
-            `receivedAmount` for a payment settled underpaid) minus
-            `feeAmount`. `null` until `status` is `settled`. The stablecoin
-            credit itself is `creditUsdt` in `creditAsset`.
+            The credit basis less `feeAmount`, in `currency`: `amount`, or
+            `receivedAmount` for a payment settled underpaid. Computed on the
+            quote. `null` until `status` is `settled`. The amount added to your
+            balance is `creditAmount`, in your Account Currency.
           examples: [49.65]
         settledAmount:
           type: [number, "null"]
           description: >
             The fiat amount (in `currency`) the payment partner realised for
-            the payment, before Qint's fee. Booked after settlement, so it is
-            `null` at first and on most freshly settled payments; once set it
-            replaces `amount` as the basis for `feeAmount` and `netAmount`.
+            the payment. Booked after settlement, so it is `null` at first and
+            on most freshly settled payments. For information only: it changes
+            neither `feeAmount`, `netAmount` nor the credit.
           examples: [null]
         receivedAmount:
           type: [number, "null"]
@@ -555,27 +749,29 @@ components:
             expected crypto amount (`30` = 0.3 %). `null` unless the payment
             is underpaid and short.
           examples: [null]
-        creditUsdt:
+        creditAmount:
           type: [number, "null"]
           description: >
-            The amount credited to your balance for this payment, in
-            `creditAsset` (6 decimal places). The name predates USDC: for a
-            merchant settling in USDC this is USDC. `null` until the payment
-            is settled and credited.
-          examples: [108.9]
+            What the payment added to your balance, in `creditCurrency`, 2
+            decimal places: `netAmount` × `creditRate`, rounded to the cent.
+            Fixed at settlement and never recomputed. `null` until the payment
+            is credited, and on payments settled before 20 October 2026.
+          examples: [49.65]
+        creditCurrency:
+          description: >
+            Your Account Currency at the time of the quote — the currency
+            `creditAmount` is in. `null` until credited.
+          oneOf:
+            - $ref: "#/components/schemas/AccountCurrency"
+            - type: "null"
         creditRate:
           type: [number, "null"]
           description: >
-            Fiat units of `currency` per 1 unit of `creditAsset` used for the
-            credit. `null` until credited.
-          examples: [0.8909]
-        creditAsset:
-          description: >
-            The stablecoin the credit was booked in — your settlement asset at
-            the moment of crediting. `null` until credited.
-          oneOf:
-            - $ref: "#/components/schemas/SettlementAsset"
-            - type: "null"
+            Units of `creditCurrency` per 1 unit of `currency`, fixed when the
+            buyer was quoted (e.g. `0.9389` for EUR into CHF). `1` when the two
+            currencies match. `null` until credited. Before 20 October 2026
+            this field meant fiat per stablecoin unit.
+          examples: [1]
       example:
         id: pi_x7k2m9p4q1w8
         status: initiated
@@ -599,9 +795,9 @@ components:
         settledAmount: null
         receivedAmount: null
         underpaidBps: null
-        creditUsdt: null
+        creditAmount: null
+        creditCurrency: null
         creditRate: null
-        creditAsset: null
     PagedIntents:
       type: object
       required: [items, total, page, pageSize]
@@ -643,12 +839,130 @@ components:
             settledAmount: null
             receivedAmount: null
             underpaidBps: null
-            creditUsdt: 55.786517
-            creditRate: 0.89
-            creditAsset: USDT
+            creditAmount: 49.65
+            creditCurrency: CHF
+            creditRate: 1
         total: 1
         page: 1
         pageSize: 20
+    Balance:
+      type: object
+      description: The merchant balance in its Account Currency.
+      required: [currency, available, pending, holdingDays, rates, asOf, uncreditedCount, onHold, onHoldCount]
+      properties:
+        currency:
+          $ref: "#/components/schemas/AccountCurrency"
+        available:
+          type: number
+          description: Withdrawable now, exact, in `currency`.
+          examples: [1250.4]
+        pending:
+          type: number
+          description: Credits still inside the holding period, in `currency`.
+          examples: [93.42]
+        holdingDays:
+          type: integer
+          description: The holding period in days (1–7, default 2).
+          examples: [2]
+        display:
+          description: >
+            The balance in the display currency, indicative. `null` when the
+            display currency is the Account Currency.
+          oneOf:
+            - $ref: "#/components/schemas/DisplayBalance"
+            - type: "null"
+        rates:
+          type: object
+          additionalProperties:
+            type: number
+          description: >
+            Indicative units of each supported currency per 1 Account Currency
+            unit; the Account Currency itself is `1`.
+          examples: [{ CHF: 1, EUR: 1.0651, USD: 1.2412, GBP: 0.9278 }]
+        asOf:
+          type: string
+          format: date-time
+          description: When the figures were computed.
+        uncreditedCount:
+          type: integer
+          description: Settled payments still waiting for their credit (normally 0).
+          examples: [0]
+        onHold:
+          type: number
+          description: >
+            Credits of payments under an open compliance inquiry with funds on
+            hold, in `currency`. Excluded from `available` and `pending`.
+          examples: [0]
+        onHoldCount:
+          type: integer
+          description: How many payments are on hold.
+          examples: [0]
+    DisplayBalance:
+      type: object
+      description: The balance re-expressed in another currency. Indicative; never moves money.
+      required: [currency, rate, available, pending, onHold, indicative]
+      properties:
+        currency:
+          $ref: "#/components/schemas/AccountCurrency"
+        rate:
+          type: number
+          description: Units of `currency` per 1 Account Currency unit.
+          examples: [1.0651]
+        available:
+          type: number
+          examples: [1331.8]
+        pending:
+          type: number
+          examples: [99.5]
+        onHold:
+          type: number
+          examples: [0]
+        asOf:
+          type: [string, "null"]
+          format: date-time
+          description: The time of the rate.
+        indicative:
+          type: boolean
+          description: Always `true`.
+          examples: [true]
+    AccountCurrencySettings:
+      type: object
+      required: [currency, changeable, currencies]
+      properties:
+        currency:
+          $ref: "#/components/schemas/AccountCurrency"
+        setBy:
+          type: [string, "null"]
+          enum: [merchant, staff, null]
+          description: Who chose it; `null` while it is the CHF default.
+        setAt:
+          type: [string, "null"]
+          format: date-time
+        changeable:
+          type: boolean
+          description: Whether the balance is empty, so the currency can be changed now.
+        changeBlocker:
+          type: [string, "null"]
+          description: Why it cannot be changed now; `null` when `changeable`.
+        currencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountCurrency"
+          description: The codes that can be chosen now.
+      example:
+        currency: EUR
+        setBy: merchant
+        setAt: "2026-10-20T13:05:00Z"
+        changeable: true
+        changeBlocker: null
+        currencies: [CHF, EUR, USD, GBP]
+    AccountCurrencyRequest:
+      type: object
+      required: [currency]
+      properties:
+        currency:
+          $ref: "#/components/schemas/AccountCurrency"
+      additionalProperties: false
     Problem:
       type: object
       description: RFC 7807 problem details (`application/problem+json`).
@@ -672,8 +986,11 @@ components:
           type: string
           description: >
             Machine-readable error code: `amount_out_of_range`,
-            `terms_acceptance_required` or `rate_unavailable`. Absent on most errors — including a disabled
-            currency — so fall back to `status` and `detail`.
+            `terms_acceptance_required` or `rate_unavailable` on the merchant
+            API; `invalid_account_currency` or
+            `account_currency_ledger_not_empty` on the Account Currency
+            endpoint. Absent on most errors — including a disabled currency —
+            so fall back to `status` and `detail`.
         minChf:
           type: number
           description: Only with `amount_out_of_range` — the minimum payment in CHF.

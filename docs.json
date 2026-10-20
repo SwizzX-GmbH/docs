@@ -60,6 +60,7 @@
               "guides/woocommerce",
               "guides/underpayments",
               "guides/compliance-inquiries",
+              "guides/settlement",
               "guides/payouts",
               "guides/going-live"
             ]
@@ -87,6 +88,14 @@
             "group": "Currencies",
             "pages": [
               "api-reference/list-currencies"
+            ]
+          },
+          {
+            "group": "Dashboard",
+            "pages": [
+              "api-reference/get-balance",
+              "api-reference/get-account-currency",
+              "api-reference/set-account-currency"
             ]
           }
         ]
