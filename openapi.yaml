@@ -131,15 +131,31 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
-          description: The API key lacks the Write scope.
+          description: |
+            The API key lacks the Write scope (no `code`), or new payments are
+            paused because your account has not accepted the Qint terms in
+            force (`code: terms_acceptance_required`). The pause starts on the
+            terms' effective date and ends as soon as an Owner or Admin accepts
+            them in the dashboard; existing intents and idempotent replays are
+            not affected.
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-              example:
-                title: An error occurred while processing your request.
-                status: 403
-                detail: This API key lacks the Write scope.
+              examples:
+                missingScope:
+                  summary: API key lacks the Write scope (no code)
+                  value:
+                    title: An error occurred while processing your request.
+                    status: 403
+                    detail: This API key lacks the Write scope.
+                termsAcceptanceRequired:
+                  summary: Current terms not accepted
+                  value:
+                    title: Terms acceptance required
+                    status: 403
+                    detail: "The merchant has not accepted the current Qint terms; new payments are paused until an Owner or Admin accepts them in the dashboard."
+                    code: terms_acceptance_required
         "404":
           description: Merchant not found.
           content:
@@ -655,8 +671,8 @@ components:
         code:
           type: string
           description: >
-            Machine-readable error code, e.g. `amount_out_of_range` or
-            `rate_unavailable`. Absent on most errors — including a disabled
+            Machine-readable error code: `amount_out_of_range`,
+            `terms_acceptance_required` or `rate_unavailable`. Absent on most errors — including a disabled
             currency — so fall back to `status` and `detail`.
         minChf:
           type: number

@@ -10,6 +10,7 @@ Work through this once, top to bottom, before launch. Most production incidents 
 
 - [ ] **Merchant approved.** Onboarding submitted and approved — the API and checkout refuse unapproved merchants.
 - [ ] **Bank details correct.** Payouts go to the account from your onboarding profile; a typo here delays your money, not Qint's.
+- [ ] **Current terms accepted.** An Owner or Admin has accepted the Qint terms in the dashboard. Without that, new payments are refused with [`terms_acceptance_required`](/accept-payments/api-payments#terms-acceptance) from the terms' effective date.
 - [ ] **Branding set.** Logo, brand color and support email appear on the hosted checkout — buyers should recognize you.
 - [ ] **Accepted assets reviewed.** The default is USDT, USDC, ETH and BTC; enable [more assets](/accept-payments/assets-and-networks) deliberately, not accidentally.
 - [ ] **Team roles assigned.** Give finance staff the Finance role for payouts and underpayment reviews; developers the Developer role for keys and webhooks. Don't share Owner logins.

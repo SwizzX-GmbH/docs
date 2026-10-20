@@ -49,7 +49,7 @@ Errors are RFC 7807 problem documents, `Content-Type: application/problem+json`:
 | --- | --- |
 | `400` | Invalid request — bad amount, unsupported currency, a currency Qint has [switched off](/accept-payments/api-payments#currency-availability), malformed `returnUrl`, or an amount outside the [payment limits](/accept-payments/api-payments#payment-limits) (`code: "amount_out_of_range"`). |
 | `401` | Missing, malformed, revoked or unknown API key. |
-| `403` | Key lacks the required scope (`detail` names it). |
+| `403` | Key lacks the required scope (`detail` names it), or new payments are paused because your account has not accepted the [current terms](/accept-payments/api-payments#terms-acceptance) (`code: "terms_acceptance_required"`). |
 | `404` | The resource doesn't exist — or belongs to another merchant. |
 | `429` | Rate limited — back off and retry. |
 | `503` | Exchange rate unavailable (`code: "rate_unavailable"`) — retry in a minute. |
@@ -58,7 +58,7 @@ Include the `traceId` when contacting support about a failed request.
 
 ### Error codes
 
-Only two errors carry a machine-readable `code`: `amount_out_of_range` (`400`, with `minChf`, `maxChf` and `amountChf`) and `rate_unavailable` (`503`). Every other error has **no `code` field** — branch on the HTTP status and treat `detail` as a human-readable message.
+Only three errors carry a machine-readable `code`: `amount_out_of_range` (`400`, with `minChf`, `maxChf` and `amountChf`), `terms_acceptance_required` (`403`) and `rate_unavailable` (`503`). Every other error has **no `code` field** — branch on the HTTP status and treat `detail` as a human-readable message.
 
 A currency Qint has switched off for new payments is one of these code-less `400`s:
 

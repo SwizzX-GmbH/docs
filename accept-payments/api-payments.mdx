@@ -157,6 +157,23 @@ If the exchange rate source is unavailable, the API fails closed with `503` and 
 
 If you create an intent and your cap is lowered before the buyer pays, the hosted checkout shows the buyer "This payment is outside the merchant's allowed range — please contact the merchant." (HTTP `409`, `code: "amount_out_of_range"`).
 
+## Terms acceptance
+
+The Qint terms, which include the fee schedule, apply from their effective date. If your account has not accepted the terms in force by that date, Qint pauses **new** payments until an Owner or Admin accepts them in the dashboard. Creating an intent then answers `403` with `code: "terms_acceptance_required"`:
+
+```json Response (403 Forbidden)
+{
+  "title": "Terms acceptance required",
+  "status": 403,
+  "detail": "The merchant has not accepted the current Qint terms; new payments are paused until an Owner or Admin accepts them in the dashboard.",
+  "code": "terms_acceptance_required"
+}
+```
+
+The same response comes back when a buyer starts paying through a payment link or an invoice, so the hosted checkout shows them that message. Nothing else is paused: payments already in progress continue to settle, a retry with the `idempotencyKey` of an existing intent still returns it, your balance stays available and payouts continue as normal. Owners and Admins receive one email when the pause takes effect. Acceptance takes effect immediately, and the next request succeeds. If you do not want to continue under new terms, the agreement can be ended with the ordinary 90-day notice period.
+
+When Qint publishes new terms with a later effective date, the dashboard asks for acceptance straight away, but nothing is paused before that date.
+
 ## Step 2 — Redirect the buyer
 
 Send the buyer to `checkoutUrl`. The hosted checkout shows your title, amount and branding, lets the buyer pick an asset and network, and displays the exact crypto amount and deposit address. If the amount is outside your allowed range at that moment, the buyer sees "This payment is outside the merchant's allowed range — please contact the merchant." instead. The whole attempt lives inside the **15-minute window** that started at creation (`expiresAt`).
