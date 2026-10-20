@@ -8,7 +8,7 @@ Crypto payments are push payments: the buyer types (or scans) an amount and send
 
 ## Accepted underpayment — small shortfalls settle
 
-Each merchant sets an **Accepted underpayment** under **Dashboard → Settings → Payouts**: the largest shortfall, as a share of the payment, that Qint settles without asking you. The default is **0.5 %**; you can choose anything from **0 % to 2 %** (0 % means every shortfall goes to review). Only Owner and Admin users can change it, and the setting shows who set the current value.
+Each merchant sets an **Accepted underpayment** under **Dashboard → Settings → Payouts**: the largest shortfall, as a share of the payment, that Qint settles without asking you. The default is **1 %**; you can choose anything from **0 % to 2 %** (0 % means every shortfall goes to review). Only Owner and Admin users can change it, and the setting shows who set the current value.
 
 A payment short by **no more than** your accepted underpayment counts as **paid in full** — the order or invoice is Paid, and you are not asked to decide. In detail, it:
 
@@ -17,7 +17,7 @@ A payment short by **no more than** your accepted underpayment counts as **paid 
 - shows **"Underpaid by x %"** and **Paid** in the transaction detail, and the receipt shows the amount actually paid. A linked invoice is marked **Paid**.
 
 <Note>
-Example: a CHF 100.00 invoice with a 0.5 % accepted underpayment, and CHF as your Account Currency. The buyer's
+Example: a CHF 100.00 invoice with the default 1 % accepted underpayment, and CHF as your Account Currency. The buyer's
 crypto arrives worth CHF 99.70 (0.3 % short). The payment settles, is flagged
 underpaid by 0.3 %, and your balance is credited CHF 99.70 less the Qint fee on
 CHF 99.70 — the missing CHF 0.30 is not credited.
