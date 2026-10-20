@@ -94,6 +94,9 @@
             "group": "Dashboard",
             "pages": [
               "api-reference/get-balance",
+              "api-reference/quote-conversion",
+              "api-reference/convert-balance",
+              "api-reference/list-conversions",
               "api-reference/get-account-currency",
               "api-reference/set-account-currency"
             ]

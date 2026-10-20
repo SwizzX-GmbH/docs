@@ -4,23 +4,21 @@ description: "How a crypto payment becomes a fixed fiat credit in the currency y
 icon: "scale-balanced"
 ---
 
-Your customers pay in crypto; your balance is in fiat. Qint keeps **one balance** for your merchant account, in your **Account Currency**: CHF, EUR, USD or GBP. Unless you choose otherwise, it is **CHF**.
+Your customers pay in crypto; your balance is in fiat. New payments are credited to your balance in your **Account Currency**: CHF, EUR, USD or GBP. Unless you choose otherwise, it is **CHF**.
 
-Every payment is credited to that balance in the Account Currency, at the exchange rate fixed when the buyer is quoted at checkout. From that moment you carry no crypto price risk and no exchange-rate risk.
+Every payment is credited in the Account Currency at the exchange rate fixed when the buyer is quoted at checkout. From that moment you carry no crypto price risk and no exchange-rate risk. If you change the Account Currency later, a balance in the previous currency stays payable in that currency and can be [converted](#converting-a-previous-currency-balance) whenever you like.
 
 ## Choosing your Account Currency
 
 You choose the Account Currency during onboarding, and an Owner or Admin can change it later in the dashboard settings. Only currencies that Qint currently offers can be chosen (see [currency availability](/accept-payments/api-payments#currency-availability)).
 
-The Account Currency can be changed **only while your balance is empty**. That means all of the following:
+The Account Currency can be changed **at any time**, also while money is on the balance or payments are under way. The change only decides where new credits land:
 
-- nothing is available (anything below 0.01 counts as empty);
-- nothing is pending in the [holding period](/guides/payouts#balances) or on hold under a [compliance inquiry](/guides/compliance-inquiries);
-- no settled payment is still waiting for its credit;
-- no payment has been quoted to a buyer and is still unsettled;
-- no payout is requested or scheduled.
+- A payment quoted **before** the change is credited in the currency of its quote, even when it settles after the change.
+- Payments quoted **after** the change are credited in the new Account Currency.
+- The balance you hold in the previous currency stays in that currency. You can [pay it out](#balances-in-a-previous-currency) in that currency or [convert it](#converting-a-previous-currency-balance) into the new Account Currency.
 
-Funds are never converted by a settings change. To switch with money on the balance, [pay it out](/guides/payouts) first, then change the currency. A refused change says what is still blocking it.
+Funds are never converted by the settings change itself.
 
 ## How a payment is credited
 
@@ -52,17 +50,32 @@ From the moment the buyer is quoted, the figure you will be credited is fixed. T
 
 `feeAmount` and `netAmount` on a payment intent are in the invoice `currency` and are computed on the quote, so they always agree with the credit.
 
-## Display currency
+## Balances in a previous currency
 
-Besides the Account Currency, the dashboard can show your balance in a second currency of your choice. That figure is **indicative**: it uses the live rate, carries the time of that rate, and never moves money. The exact figure is always the one in your Account Currency. When the display currency is the Account Currency, no conversion is shown.
+After a change of the Account Currency, the dashboard shows your balance in the Account Currency and, below it, one row for each previous currency that still holds funds, for example "EUR 2'400.00". The row's tooltip shows what is pending and on hold in it. A previous-currency balance follows the same [holding period](/guides/payouts#balances) and [compliance holds](/guides/compliance-inquiries) as the main balance, and payments quoted before the change keep arriving in it.
+
+Each balance is shown in its own currency, and these figures are exact. The dashboard does not convert balances into another currency for display.
+
+A previous-currency balance stays payable in that currency: **Withdraw** on its row opens the payout dialog with that balance preselected under **From**. See [payouts from a previous-currency balance](/guides/payouts#payouts-from-a-previous-currency-balance). Scheduled payouts draw on the Account Currency balance only; a previous-currency balance waits for you.
+
+## Converting a previous-currency balance
+
+An Owner or Admin can convert a previous-currency balance into the current Account Currency at any time with **Convert** on its row:
+
+1. The dialog shows the amount, the result and the rate, for example "EUR 2'400.00 → CHF 2'256.48 at 0.9402", with the time of the rate in its tooltip.
+2. **Convert** books it. The available amount moves from the previous-currency balance into your Account Currency balance and is available there at once.
+
+The conversion uses the **reference rate** at that moment, with **no fee and no spread**; the result is rounded to the cent. Only the available amount can be converted: pending and on-hold funds stay where they are until they become available, and you can then convert them as well. A conversion is final. Every conversion is kept with its amounts, rate and time.
+
+The Account Currency balance itself cannot be converted; to receive money in another currency, request a [payout in that currency](/guides/payouts#manual-payouts).
 
 ## Getting the money out
 
-Your balance splits into pending and available funds by the holding period. [Payouts](/guides/payouts) go to your bank account in your Account Currency, or in another supported currency converted at the market rate at the time of the request, with no conversion fee beyond the price sheet. Crypto payouts are not offered at launch.
+Each balance splits into pending and available funds by the holding period. [Payouts](/guides/payouts) are paid from your Account Currency balance or from a previous-currency balance, to your bank account in the currency of that balance, or in another supported currency converted at the market rate at the time of the request, with no conversion fee beyond the price sheet. Crypto payouts are not offered at launch.
 
 ## Dashboard endpoints
 
-The dashboard reads and changes these settings through three endpoints, described in the API reference: [get the balance](/api-reference/get-balance), [get the Account Currency](/api-reference/get-account-currency) and [change the Account Currency](/api-reference/set-account-currency). They use the dashboard's signed-in session; API keys are not accepted.
+The dashboard reads and changes these settings through the following endpoints, described in the API reference: [get the balance](/api-reference/get-balance) (with every currency balance in `balances`), [get the Account Currency](/api-reference/get-account-currency), [change the Account Currency](/api-reference/set-account-currency), [preview a conversion](/api-reference/quote-conversion), [convert a balance](/api-reference/convert-balance) and [list conversions](/api-reference/list-conversions). They use the dashboard's signed-in session; API keys are not accepted.
 
 <Note>
 Before 20 October 2026, balances were held in a stablecoin. Payments settled before that date carry no `creditAmount`, and their former stablecoin fields (`creditUsdt`, `creditAsset`) are no longer returned. See the [breaking change note](/api-reference/introduction#breaking-change-20-october-2026).

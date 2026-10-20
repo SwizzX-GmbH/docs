@@ -38,8 +38,8 @@ info:
     ### Dashboard endpoints
     The endpoints tagged **Dashboard** serve the Qint dashboard. They
     authenticate with the dashboard's signed-in session, not with an API key,
-    and are documented so that the balance and the Account Currency rules are
-    described in one place.
+    and are documented so that the balance, balance conversion and Account
+    Currency rules are described in one place.
   contact:
     name: Qint support
     email: support@qint.ch
@@ -57,8 +57,9 @@ tags:
     description: Which fiat currencies Qint currently offers for new payments.
   - name: Dashboard
     description: >
-      The merchant balance and the Account Currency, as used by the Qint
-      dashboard. Signed-in dashboard session only; API keys are not accepted.
+      The merchant balance, conversions of a previous-currency balance and
+      the Account Currency, as used by the Qint dashboard. Signed-in dashboard
+      session only; API keys are not accepted.
 paths:
   /api/v1/intents:
     post:
@@ -330,22 +331,30 @@ paths:
       security:
         - dashboardSession: []
       description: |
-        The merchant's balance in its Account Currency. Nothing is stored as a
-        balance: the figures are computed on demand from credited payments and
-        payouts that are not cancelled.
+        The merchant's balance. Nothing is stored as a balance: the figures
+        are computed on demand from credited payments, payouts that are not
+        cancelled, and balance conversions. All figures are exact, each in its
+        own currency; nothing is converted for display.
 
-        - `available`, `pending` and `onHold` are exact, in `currency` (the
-          Account Currency).
+        - The top-level `available`, `pending` and `onHold` are the balance in
+          `currency` (the Account Currency).
         - `pending` holds credits still inside the holding period
           (`holdingDays`). `onHold` holds credits of payments under an open
           compliance inquiry; they are excluded from `available` and `pending`.
-        - `available` is net of every requested, scheduled or executed payout.
-        - `display` re-expresses the balance in the merchant's display
-          currency. It is **indicative** (live rate, `asOf`) and never moves
-          money. It is `null` when the display currency is the Account
-          Currency.
+        - `available` is net of every requested, scheduled or executed payout
+          paid from that balance and of every conversion out of it, plus every
+          conversion into it.
+        - `balances` lists one entry per currency: the Account Currency always
+          first, then every previous Account Currency that still holds funds
+          (anything available, pending or on hold, or a payment awaiting its
+          credit), in the order CHF, EUR, USD, GBP. A previous-currency balance
+          can be paid out (`sourceCurrency` on the payout request) or
+          [converted](https://docs.qint.ch/api-reference/convert-balance) into
+          the Account Currency.
         - `rates` gives, for each supported currency, the units per 1 Account
-          Currency unit (indicative; the Account Currency itself at `1`).
+          Currency unit (the Account Currency itself at `1`). The dashboard
+          uses them to preview payouts in another currency; a payout or a
+          conversion is always priced at the rate of its own request.
 
         Any member of the merchant account can read it. Users with access to
         several merchant accounts select one with the `X-Merchant-Id` header.
@@ -362,6 +371,137 @@ paths:
           $ref: "#/components/responses/NotSignedIn"
         "403":
           $ref: "#/components/responses/NoMerchantAccess"
+  /api/v1/merchant/balances/convert/quote:
+    get:
+      operationId: quoteBalanceConversion
+      tags: [Dashboard]
+      summary: Preview a conversion
+      security:
+        - dashboardSession: []
+      description: |
+        What converting a previous-currency balance into the Account Currency
+        would book right now, with the same checks as the conversion itself.
+        Nothing is stored. The dashboard's Convert dialog shows this preview.
+
+        Any member of the merchant account can read it.
+      parameters:
+        - $ref: "#/components/parameters/MerchantIdHeader"
+        - name: fromCurrency
+          in: query
+          required: true
+          description: The previous-currency balance to convert.
+          schema:
+            $ref: "#/components/schemas/AccountCurrency"
+        - name: amount
+          in: query
+          required: false
+          description: >
+            The amount to convert, in `fromCurrency`, kept to the cent. Omitted,
+            the whole available amount of that balance.
+          schema:
+            type: number
+      responses:
+        "200":
+          description: The preview.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceConversionQuote"
+        "400":
+          $ref: "#/components/responses/InvalidConversion"
+        "401":
+          $ref: "#/components/responses/NotSignedIn"
+        "403":
+          $ref: "#/components/responses/NoMerchantAccess"
+        "409":
+          $ref: "#/components/responses/ConversionRefused"
+        "503":
+          $ref: "#/components/responses/RateUnavailable"
+  /api/v1/merchant/balances/convert:
+    post:
+      operationId: convertBalance
+      tags: [Dashboard]
+      summary: Convert a balance
+      security:
+        - dashboardSession: []
+      description: |
+        Converts a balance held in a previous Account Currency into the current
+        Account Currency. Requires the **Owner** or **Admin** role.
+
+        - The rate is the reference rate at the time of the request, with **no
+          fee and no spread**. `toAmount` is `fromAmount` × `rate`, rounded to
+          the cent.
+        - Only the **available** amount converts. Without `amount`, the whole
+          available amount of `fromCurrency` is converted; pending and on-hold
+          funds stay until they become available.
+        - The converted amount is available in the Account Currency balance at
+          once. A conversion is final; it cannot be reversed.
+        - **Idempotent:** repeating the request with the same `idempotencyKey`
+          for the same currency returns the stored conversion with `200`
+          instead of booking it again (`201`).
+
+        Not available with API keys.
+      parameters:
+        - $ref: "#/components/parameters/MerchantIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConvertBalanceRequest"
+            example:
+              fromCurrency: EUR
+              amount: 2400
+              idempotencyKey: convert-eur-2026-10-20
+      responses:
+        "201":
+          description: The conversion was booked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceConversion"
+        "200":
+          description: A repeated request with the same `idempotencyKey`; the stored conversion.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceConversion"
+        "400":
+          $ref: "#/components/responses/InvalidConversion"
+        "401":
+          $ref: "#/components/responses/NotSignedIn"
+        "403":
+          $ref: "#/components/responses/NoMerchantAccess"
+        "409":
+          $ref: "#/components/responses/ConversionRefused"
+        "503":
+          $ref: "#/components/responses/RateUnavailable"
+  /api/v1/merchant/balances/conversions:
+    get:
+      operationId: listBalanceConversions
+      tags: [Dashboard]
+      summary: List conversions
+      security:
+        - dashboardSession: []
+      description: |
+        The merchant's balance conversions, newest first (at most 100).
+
+        Any member of the merchant account can read them.
+      parameters:
+        - $ref: "#/components/parameters/MerchantIdHeader"
+      responses:
+        "200":
+          description: The conversions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BalanceConversion"
+        "401":
+          $ref: "#/components/responses/NotSignedIn"
+        "403":
+          $ref: "#/components/responses/NoMerchantAccess"
   /api/v1/merchant/account-currency:
     get:
       operationId: getAccountCurrency
@@ -370,10 +510,10 @@ paths:
       security:
         - dashboardSession: []
       description: |
-        The currency the merchant's balance is kept in, who set it, and whether
-        it can be changed right now. `changeable` is `false` while the balance
-        is not empty; `changeBlocker` then says why. `currencies` lists the
-        codes that can be chosen now.
+        The currency new payments are credited in, who set it, and the codes
+        that can be chosen now (`currencies`). The Account Currency can be
+        changed at any time, so `changeable` is always `true` and
+        `changeBlocker` always `null`; both are kept for compatibility.
 
         Any member of the merchant account can read it.
       parameters:
@@ -405,13 +545,14 @@ paths:
         Sets the Account Currency to `CHF`, `EUR`, `USD` or `GBP`. Requires the
         **Owner** or **Admin** role.
 
-        The change is allowed **only while the balance is empty**: no payout
-        requested or scheduled, no payment quoted to a buyer and not yet
-        settled, no settled payment waiting for its credit, nothing on hold,
-        nothing pending, and less than 0.01 available. Otherwise the request is
-        refused with `409` and `code: account_currency_ledger_not_empty`; the
-        `detail` names what is blocking it. Funds are never converted by a
-        settings change: pay the balance out first.
+        The change is allowed **at any time**, also with money on the balance.
+        It decides where new credits land: a payment quoted before the change
+        is credited in the currency of its quote, payments quoted after it in
+        the new Account Currency. The balance in the previous currency stays in
+        that currency: it can be paid out in it (`sourceCurrency` on the payout
+        request) or [converted](https://docs.qint.ch/api-reference/convert-balance)
+        into the new Account Currency. Funds are never converted by the change
+        itself.
 
         A currency Qint does not offer, or has switched off, is refused with
         `400` and `code: invalid_account_currency`. Re-sending the current
@@ -454,17 +595,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-        "409":
-          description: "The balance is not empty (`code: account_currency_ledger_not_empty`)."
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-              example:
-                title: An error occurred while processing your request.
-                status: 409
-                detail: "The account currency can't change while the CHF ledger is not empty. 120.50 CHF is still available — pay it out first."
-                code: account_currency_ledger_not_empty
 components:
   parameters:
     MerchantIdHeader:
@@ -527,6 +657,40 @@ components:
             $ref: "#/components/schemas/Problem"
     NotSignedIn:
       description: No signed-in dashboard session.
+    InvalidConversion:
+      description: >
+        `code: invalid_conversion`: an unknown currency, an amount of zero or
+        less, or a missing `idempotencyKey` (or one longer than 200
+        characters).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    ConversionRefused:
+      description: |
+        The conversion is refused; `code` says why:
+        - `convert_same_currency`: `fromCurrency` is the Account Currency.
+        - `insufficient_funds`: the balance has less available than requested
+          (or nothing at all).
+        - `idempotency_key_reused`: the key belongs to another merchant account
+          or another currency.
+        - `account_currency_changed`: the Account Currency changed while the
+          conversion was being booked. Retry.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            title: An error occurred while processing your request.
+            status: 409
+            detail: "Requested 2400.01 EUR but only 2400.00 EUR is available."
+            code: insufficient_funds
+    RateUnavailable:
+      description: "`code: rate_unavailable`: no reference rate right now. Try again shortly."
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
     NoMerchantAccess:
       description: >
         The signed-in user is not a member of this merchant account, or (for
@@ -557,10 +721,11 @@ components:
       type: string
       enum: [CHF, EUR, USD, GBP]
       description: >
-        The fiat currency a merchant's balance is kept in. Chosen by the
-        merchant (CHF unless it chooses otherwise); it can change only while
-        the balance is empty. Every payment is credited in it at the rate fixed
-        when the buyer was quoted.
+        The fiat currency new payments are credited in (CHF unless the
+        merchant chooses otherwise). It can change at any time; a balance in a
+        previous Account Currency stays in that currency. Every payment is
+        credited in the Account Currency of its quote, at the rate fixed when
+        the buyer was quoted.
     IntentStatus:
       type: string
       description: |
@@ -847,8 +1012,10 @@ components:
         pageSize: 20
     Balance:
       type: object
-      description: The merchant balance in its Account Currency.
-      required: [currency, available, pending, holdingDays, rates, asOf, uncreditedCount, onHold, onHoldCount]
+      description: >
+        The merchant balance. The top-level figures are the Account Currency
+        balance; `balances` lists every currency balance.
+      required: [currency, available, pending, holdingDays, rates, asOf, uncreditedCount, onHold, onHoldCount, balances]
       properties:
         currency:
           $ref: "#/components/schemas/AccountCurrency"
@@ -864,20 +1031,14 @@ components:
           type: integer
           description: The holding period in days (1–7, default 2).
           examples: [2]
-        display:
-          description: >
-            The balance in the display currency, indicative. `null` when the
-            display currency is the Account Currency.
-          oneOf:
-            - $ref: "#/components/schemas/DisplayBalance"
-            - type: "null"
         rates:
           type: object
           additionalProperties:
             type: number
           description: >
-            Indicative units of each supported currency per 1 Account Currency
-            unit; the Account Currency itself is `1`.
+            Units of each supported currency per 1 Account Currency unit; the
+            Account Currency itself is `1`. For previews only: a payout or a
+            conversion is priced at the rate of its own request.
           examples: [{ CHF: 1, EUR: 1.0651, USD: 1.2412, GBP: 0.9278 }]
         asOf:
           type: string
@@ -897,34 +1058,141 @@ components:
           type: integer
           description: How many payments are on hold.
           examples: [0]
-    DisplayBalance:
+        balances:
+          type: array
+          description: >
+            One entry per currency: the Account Currency first, then every
+            previous Account Currency that still holds funds, in the order CHF,
+            EUR, USD, GBP.
+          items:
+            $ref: "#/components/schemas/CurrencyBalance"
+      example:
+        currency: CHF
+        available: 1250.4
+        pending: 93.42
+        holdingDays: 2
+        rates: { CHF: 1, EUR: 1.0651, USD: 1.2412, GBP: 0.9278 }
+        asOf: "2026-10-20T18:30:00Z"
+        uncreditedCount: 0
+        onHold: 0
+        onHoldCount: 0
+        balances:
+          - { currency: CHF, available: 1250.4, pending: 93.42, onHold: 0, isAccountCurrency: true }
+          - { currency: EUR, available: 2400, pending: 0, onHold: 0, isAccountCurrency: false }
+    CurrencyBalance:
       type: object
-      description: The balance re-expressed in another currency. Indicative; never moves money.
-      required: [currency, rate, available, pending, onHold, indicative]
+      description: The balance in one currency. Exact figures in `currency`.
+      required: [currency, available, pending, onHold, isAccountCurrency]
       properties:
         currency:
           $ref: "#/components/schemas/AccountCurrency"
-        rate:
-          type: number
-          description: Units of `currency` per 1 Account Currency unit.
-          examples: [1.0651]
         available:
           type: number
-          examples: [1331.8]
+          description: Withdrawable or convertible now, in `currency`.
+          examples: [2400]
         pending:
           type: number
-          examples: [99]
+          description: Credits still inside the holding period, in `currency`.
+          examples: [0]
         onHold:
           type: number
+          description: Credits of payments on hold under a compliance inquiry, in `currency`.
           examples: [0]
-        asOf:
-          type: [string, "null"]
+        isAccountCurrency:
+          type: boolean
+          description: >
+            `true` for the Account Currency balance, which new payments are
+            credited to; `false` for a balance in a previous Account Currency.
+          examples: [false]
+    ConvertBalanceRequest:
+      type: object
+      required: [fromCurrency, idempotencyKey]
+      properties:
+        fromCurrency:
+          $ref: "#/components/schemas/AccountCurrency"
+        amount:
+          type: [number, "null"]
+          description: >
+            The amount to convert, in `fromCurrency`, kept to the cent. Omitted
+            or `null`, the whole available amount of that balance.
+          examples: [2400]
+        idempotencyKey:
+          type: string
+          maxLength: 200
+          description: >
+            **Required.** Your unique key for this conversion. Repeating the
+            request with the same key returns the stored conversion.
+          examples: [convert-eur-2026-10-20]
+      additionalProperties: false
+    BalanceConversion:
+      type: object
+      description: A conversion of a previous-currency balance into the Account Currency.
+      required: [id, fromCurrency, fromAmount, toCurrency, toAmount, rate, rateSource, rateAt, idempotencyKey, createdAt]
+      properties:
+        id:
+          type: string
+          description: Conversion id (`cv_…`).
+          examples: [cv_4k8m2p9q7w1x]
+        fromCurrency:
+          $ref: "#/components/schemas/AccountCurrency"
+        fromAmount:
+          type: number
+          description: The amount taken from the `fromCurrency` balance.
+          examples: [2400]
+        toCurrency:
+          $ref: "#/components/schemas/AccountCurrency"
+        toAmount:
+          type: number
+          description: The amount added to the Account Currency balance, rounded to the cent.
+          examples: [2256.48]
+        rate:
+          type: number
+          description: Units of `toCurrency` per 1 unit of `fromCurrency`. The reference rate; no fee, no spread.
+          examples: [0.9402]
+        rateSource:
+          type: string
+          description: Where the rate came from.
+        rateAt:
+          type: string
           format: date-time
           description: The time of the rate.
-        indicative:
-          type: boolean
-          description: Always `true`.
-          examples: [true]
+        requestedByUserId:
+          type: [string, "null"]
+          format: uuid
+          description: The dashboard user who requested it.
+        idempotencyKey:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    BalanceConversionQuote:
+      type: object
+      description: What a conversion would book now. Nothing is stored.
+      required: [fromCurrency, fromAmount, toCurrency, toAmount, rate, rateSource, rateAt, available]
+      properties:
+        fromCurrency:
+          $ref: "#/components/schemas/AccountCurrency"
+        fromAmount:
+          type: number
+          examples: [2400]
+        toCurrency:
+          $ref: "#/components/schemas/AccountCurrency"
+        toAmount:
+          type: number
+          examples: [2256.48]
+        rate:
+          type: number
+          description: Units of `toCurrency` per 1 unit of `fromCurrency`.
+          examples: [0.9402]
+        rateSource:
+          type: string
+        rateAt:
+          type: string
+          format: date-time
+        available:
+          type: number
+          description: The available amount of the `fromCurrency` balance the preview was checked against.
+          examples: [2400]
     AccountCurrencySettings:
       type: object
       required: [currency, changeable, currencies]
@@ -940,10 +1208,10 @@ components:
           format: date-time
         changeable:
           type: boolean
-          description: Whether the balance is empty, so the currency can be changed now.
+          description: Always `true`; the Account Currency can be changed at any time. Kept for compatibility.
         changeBlocker:
           type: [string, "null"]
-          description: Why it cannot be changed now; `null` when `changeable`.
+          description: Always `null`. Kept for compatibility.
         currencies:
           type: array
           items:
@@ -987,9 +1255,11 @@ components:
           description: >
             Machine-readable error code: `amount_out_of_range`,
             `terms_acceptance_required` or `rate_unavailable` on the merchant
-            API; `invalid_account_currency` or
-            `account_currency_ledger_not_empty` on the Account Currency
-            endpoint. Absent on most errors — including a disabled currency —
+            API; `invalid_account_currency` on the Account Currency endpoint;
+            `invalid_conversion`, `convert_same_currency`,
+            `insufficient_funds`, `idempotency_key_reused`,
+            `account_currency_changed` or `rate_unavailable` on the balance
+            conversion endpoints. Absent on most errors, including a disabled currency,
             so fall back to `status` and `detail`.
         minChf:
           type: number

@@ -4,29 +4,44 @@ description: "Balances, the holding period, and getting your money out."
 icon: "building-columns"
 ---
 
-Settled payments accumulate in one balance in your **[Account Currency](/guides/settlement)** — CHF unless you chose EUR, USD or GBP — which you pay out manually or on a schedule. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
+Settled payments accumulate in your balance in your **[Account Currency](/guides/settlement)** (CHF unless you chose EUR, USD or GBP), which you pay out manually or on a schedule. After a change of the Account Currency, a balance in the previous currency stays payable in that currency. Balances and payouts live in the [dashboard](https://dashboard.qint.ch).
 
 ## Balances
 
 Every settled payment is credited to your balance in your Account Currency at the rate fixed when the buyer was quoted: the invoiced amount minus Qint's fee where you bear it — or, for a payment settled [underpaid](/guides/underpayments), the amount actually received minus Qint's fee on that amount. How the credit is computed is explained in [settlement and your Account Currency](/guides/settlement). The payment's detail view and the CSV export show the amount credited (`credit_amount`), its currency (`credit_currency`) and the rate (`credit_rate`).
 
-The balance figure in your Account Currency is exact. The dashboard can also show it in a **display currency** of your choice; that second figure is indicative, at the live rate. The balance splits in two:
+Every balance figure is exact and shown in its own currency. Each balance splits in two:
 
 | Bucket | Meaning |
 | --- | --- |
 | **Pending** | Funds from payments settled within the holding period. Not yet withdrawable. |
 | **Available** | Funds past the holding period, minus everything reserved by non-cancelled payouts. Withdrawable. |
 
-The **holding period** is 1–7 days (default 2), set on your account by Qint. Requested and scheduled payouts reserve the amount they need from the available balance immediately, in your Account Currency — you can never request more than is available.
+The **holding period** is 1–7 days (default 2), set on your account by Qint. Requested and scheduled payouts reserve the amount they need from the available balance they are paid from immediately, in the currency of that balance. You can never request more than is available.
+
+### Balances in more than one currency
+
+You hold one balance per currency. Normally that is a single balance in your Account Currency. When you [change the Account Currency](/guides/settlement#choosing-your-account-currency), payments quoted after the change are credited in the new currency, and the balance in the previous currency stays in that currency, together with payments that were quoted before the change and settle later. The dashboard shows each previous-currency balance as its own row under the main balance, with **Withdraw** and, for Owner and Admin users, **Convert**.
+
+- **Pay it out** in that currency, or in another currency at the market rate: see [payouts from a previous-currency balance](#payouts-from-a-previous-currency-balance).
+- **Convert it** into your Account Currency at the reference rate, with no fee: see [converting a previous-currency balance](/guides/settlement#converting-a-previous-currency-balance).
+
+The `GET /api/v1/merchant/balances` response lists every balance in `balances` (see [get the balance](/api-reference/get-balance)).
 
 ## Manual payouts
 
-**Dashboard → Payouts → Withdraw funds.** Choose the payout type, the payout currency (CHF, EUR, USD or GBP — whichever Qint currently offers, see [currency availability](/accept-payments/api-payments#currency-availability)), the amount in that currency, and an optional note. Requires the Owner, Admin or Finance role.
+**Dashboard → Payouts → Withdraw funds.** Choose the payout type, the payout currency (CHF, EUR, USD or GBP, whichever Qint currently offers, see [currency availability](/accept-payments/api-payments#currency-availability)), the amount in that currency, and an optional note. If you hold a balance in a previous Account Currency, choose under **From** which balance pays the payout; it is your Account Currency balance unless you pick another. Requires the Owner, Admin or Finance role.
 
-- **In your Account Currency:** no conversion. The amount is debited from your balance as it is.
-- **In another currency:** the amount is converted at the market rate at the time of your request. The dialog shows the rate and the amount that will be debited from your balance; the rate is fixed on the payout when you request it. There is **no conversion fee**: the [payout fees](#payout-fees) of the price sheet are the only charge.
+- **In the currency of the source balance:** no conversion. The amount is debited from that balance as it is.
+- **In another currency:** the amount is converted at the market rate at the time of your request. The dialog shows the rate and the amount that will be debited from the source balance; the rate is fixed on the payout when you request it. There is **no conversion fee**: the [payout fees](#payout-fees) of the price sheet are the only charge.
 
-The dashboard's payout quote (`GET /api/v1/merchant/payouts/quote`, signed-in session) carries these figures in its `fx` block: `sourceAmount` (what the payout debits, in your Account Currency), `available` (your available balance), `currency` (your Account Currency), `sourceRate` (payout-currency units per 1 Account Currency unit, `1` when they are the same) and `asOf` (the time of the rate).
+The dashboard's payout quote (`GET /api/v1/merchant/payouts/quote`, signed-in session) carries these figures in its `fx` block: `sourceAmount` (what the payout debits from the source balance), `available` (the available amount of that balance), `currency` (the currency of the source balance), `sourceRate` (payout-currency units per 1 unit of the source balance currency, `1` when they are the same) and `asOf` (the time of the rate).
+
+### Payouts from a previous-currency balance
+
+The payout quote (`GET /api/v1/merchant/payouts/quote`) and the payout request (`POST /api/v1/merchant/payouts`) take an optional **`sourceCurrency`**: the balance the payout is paid from (`CHF`, `EUR`, `USD` or `GBP`). Omitted, it is your Account Currency. A payout from a previous-currency balance is priced exactly like one from the main balance, with that balance as the source: in the same currency there is no conversion, in another currency the market rate at the time of the request applies. The CHF 5'000 threshold of the [payout fees](#payout-fees) and the cash limit are measured on the CHF value of the amount debited. In the dashboard, **Withdraw** on a previous-currency row opens the dialog with that balance preselected under **From**.
+
+Scheduled payouts only draw on your Account Currency balance. A previous-currency balance is paid out or converted when you decide.
 
 | Type | What it means |
 | --- | --- |
@@ -95,7 +110,7 @@ Prefer a standing sweep? The payout schedule on **Dashboard → Payouts** offers
 | Weekly | Mondays |
 | Monthly | The 1st of the month |
 
-When due, Qint automatically creates one **Bank** payout of the full available balance in your schedule currency (or your bank currency when none is set, else your Account Currency), converted at the market rate of that moment only when it differs from your Account Currency — provided it's at least **10.00** in that currency. On the payout routes with a minimum (see [Fees](#fees)), what happens below the equivalent of **CHF 5'000** depends on whether you have set a [minimum amount for automatic payouts](#minimum-amount-for-automatic-payouts):
+When due, Qint automatically creates one **Bank** payout of the full available Account Currency balance in your schedule currency (or your bank currency when none is set, else your Account Currency), converted at the market rate of that moment only when it differs from your Account Currency, provided it's at least **10.00** in that currency. On the payout routes with a minimum (see [Fees](#fees)), what happens below the equivalent of **CHF 5'000** depends on whether you have set a [minimum amount for automatic payouts](#minimum-amount-for-automatic-payouts):
 
 - **No minimum set:** the scheduled payout waits until the balance is worth the equivalent of CHF 5'000 and is free. It never pays the early-payout fee; the balance simply accumulates until it reaches the threshold.
 - **Minimum set:** the scheduled payout goes out as soon as the balance reaches your minimum, and a payout below the equivalent of CHF 5'000 is charged the CHF 25 early-payout fee of the price sheet, exactly as a manual payout of the same amount would be.

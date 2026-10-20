@@ -1,0 +1,18 @@
+---
+title: "Convert a balance"
+openapi: "openapi.yaml POST /api/v1/merchant/balances/convert"
+playground: "none"
+---
+
+<Note>
+A dashboard endpoint: it uses the signed-in dashboard session, not an API key, and requires the Owner or Admin role. It converts a balance held in a previous Account Currency into the current Account Currency at the reference rate, with no fee. See [converting a previous-currency balance](/guides/settlement#converting-a-previous-currency-balance).
+</Note>
+
+| HTTP | `code` | When |
+| --- | --- | --- |
+| 400 | `invalid_conversion` | Unknown currency, an amount of zero or less, or a missing `idempotencyKey` (or one longer than 200 characters). |
+| 409 | `convert_same_currency` | `fromCurrency` is the Account Currency. |
+| 409 | `insufficient_funds` | Less is available in that balance than requested, or nothing at all. `detail` names both figures. |
+| 409 | `idempotency_key_reused` | The `idempotencyKey` belongs to another merchant account or another currency. |
+| 409 | `account_currency_changed` | The Account Currency changed while the conversion was being booked. Retry. |
+| 503 | `rate_unavailable` | No reference rate right now. Try again shortly. |
