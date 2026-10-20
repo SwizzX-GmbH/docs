@@ -7,7 +7,7 @@ icon: "wordpress"
 The Qint Payments plugin adds a **Pay with crypto** method to WooCommerce checkout. Customers are redirected to Qint's hosted checkout; orders update automatically via [signed webhooks](/webhooks/overview), with a polling fallback in case a webhook is missed.
 
 <Card title="Download qint-payments.zip" icon="download" href="https://qint.ch/downloads/qint-payments.zip">
-  Current version 1.0.4 — a standard WordPress plugin package, installed through WP Admin.
+  Current version 1.0.5 — a standard WordPress plugin package, installed through WP Admin.
 </Card>
 
 **Requirements**
@@ -119,7 +119,7 @@ Webhooks are the primary mechanism: every [`payment.status` event](/webhooks/eve
 
 As a fallback, when the customer lands on the order-received (thank-you) page, on the order-pay page, or comes back from the hosted checkout with `?qint_intent=…` in the URL, and the order is still pending/on-hold, the plugin polls [`GET /api/v1/intents/{id}`](/api-reference/get-intent) once (throttled to one call per 30 s) and applies the same mapping.
 
-When the settlement is applied from an API read (the polling fallback, or a reused intent at checkout), the "payment settled" note also lists the settlement figures the API reports — for example `Qint settlement: fee 0.25 CHF, net 49.65 CHF, credited 55.786517 USDT.` — from the intent's `feeAmount`, `netAmount`, `creditUsdt` and `creditAsset` (`USDT`, or `USDC` for merchants registered in the EEA). The [`payment.status` webhook](/webhooks/events) does not carry these figures, so a note written from a webhook has the asset and amount only; the figures are always in the Qint dashboard.
+The "payment settled" note also lists the settlement figures the API reports. Applied from an API read (the polling fallback, or a reused intent at checkout) it reads, for example, `Qint settlement: fee 0.50 EUR, net 99.50 EUR, credited 93.42 CHF.` — from the intent's `feeAmount` and `netAmount` (in the order currency) and `creditAmount` / `creditCurrency` (what the payment added to your Qint balance, in your Account Currency). The [`payment.status` webhook](/webhooks/events) carries the credit but not the fee and net, so a note written from a webhook reads `Qint settlement: credited 93.42 CHF.`; the full figures are always in the Qint dashboard.
 
 The admin order screen shows a **Qint payment** box with the intent id, cached status, underpaid/reversed flags and a dashboard link; the cache self-refreshes when older than 2 minutes while payment is pending.
 
@@ -201,6 +201,8 @@ Every Qint payment must be between **CHF 10 and CHF 100'000** (or the equivalent
 Deleting the plugin from the Plugins screen removes its settings and transients. Order meta (intent ids, statuses) is preserved as part of your order history.
 
 ## Changelog
+
+**1.0.5** — Follows the Qint API change of 20 October 2026 (your balance is held in fiat, in your Account Currency): the "payment settled" order note shows the amount credited to your Qint balance in that currency (`credited 93.42 CHF`) instead of the stablecoin credited, which the API no longer reports. The webhook path shows the credit as well. No settings change.
 
 **1.0.4** — The gateway settings page shows the exact webhook URL for your store, ready to copy, and warns when permalinks are "Plain" (where `/wp-json/qint/v1/webhook` serves the homepage, so deliveries looked successful while orders never updated). The payment method is hidden when the cart is below Qint's minimum (CHF 10 or the equivalent) and the checkout shows Qint's limits message; if the minimum can't be determined the method stays visible. Fixes the payment method not appearing on the block checkout on current WooCommerce versions. Tested up to WordPress 7.1 and WooCommerce 11.2.
 
