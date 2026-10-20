@@ -26,9 +26,9 @@ Funds are never converted by a settings change. To switch with money on the bala
 
 1. **You invoice in any supported currency.** A payment link, an invoice or an [API intent](/accept-payments/api-payments) is priced in CHF, EUR, USD or GBP. The invoice currency does not have to match your Account Currency.
 2. **The rate is fixed at the quote.** When the buyer picks a crypto asset at checkout, Qint quotes the crypto amount and, at the same moment, fixes the rate from the invoice currency into your Account Currency. When the two are the same, the rate is exactly 1. If the buyer goes back and picks another asset, the payment is quoted again and the new rate replaces the old one: the last quote before payment is the one that counts.
-3. **The payment settles and is credited.** The credit is the invoice amount less Qint's fee of 0.5 %, where you bear it, converted at the quote rate and rounded to the cent. When your customer pays the fee on top, the full invoice amount is converted. The credited amount never changes afterwards.
+3. **The payment settles and is credited.** The credit is the invoice amount less Qint's fee of 1 %, where you bear it, converted at the quote rate and rounded to the cent. When your customer pays the fee on top, the full invoice amount is converted. The credited amount never changes afterwards.
 
-**Example.** Your Account Currency is CHF and you invoice EUR 100.00. You bear the fee, so the net is EUR 99.50. At the quote the rate was 0.9389 CHF per EUR, so your balance is credited CHF 93.42.
+**Example.** Your Account Currency is CHF and you invoice EUR 100.00. You bear the fee, so the net is EUR 99.00. At the quote the rate was 0.9389 CHF per EUR, so your balance is credited CHF 92.95.
 
 Two cases differ from the invoice amount:
 

@@ -834,12 +834,12 @@ components:
             reversedAt: null
             reversed: false
             underpaid: false
-            feeAmount: 0.25
-            netAmount: 49.65
+            feeAmount: 0.5
+            netAmount: 49.4
             settledAmount: null
             receivedAmount: null
             underpaidBps: null
-            creditAmount: 49.65
+            creditAmount: 49.4
             creditCurrency: CHF
             creditRate: 1
         total: 1
@@ -913,7 +913,7 @@ components:
           examples: [1331.8]
         pending:
           type: number
-          examples: [99.5]
+          examples: [99]
         onHold:
           type: number
           examples: [0]
