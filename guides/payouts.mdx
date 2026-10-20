@@ -95,11 +95,20 @@ Prefer a standing sweep? The payout schedule on **Dashboard → Payouts** offers
 | Weekly | Mondays |
 | Monthly | The 1st of the month |
 
-When due, Qint automatically creates one **Bank** payout of the full available balance, converted into your schedule currency (or your bank currency when none is set) — provided it's at least **10.00** in that currency and, for the payout routes with a minimum (see [Fees](#fees)), worth at least the equivalent of **CHF 5'000**. Scheduled payouts never pay the early-payout fee: the balance simply accumulates until it reaches the threshold. Configuring schedules requires the Owner or Admin role.
+When due, Qint automatically creates one **Bank** payout of the full available balance, converted into your schedule currency (or your bank currency when none is set) — provided it's at least **10.00** in that currency. On the payout routes with a minimum (see [Fees](#fees)), what happens below the equivalent of **CHF 5'000** depends on whether you have set a [minimum amount for automatic payouts](#minimum-amount-for-automatic-payouts):
+
+- **No minimum set:** the scheduled payout waits until the balance is worth the equivalent of CHF 5'000 and is free. It never pays the early-payout fee; the balance simply accumulates until it reaches the threshold.
+- **Minimum set:** the scheduled payout goes out as soon as the balance reaches your minimum, and a payout below the equivalent of CHF 5'000 is charged the CHF 25 early-payout fee of the price sheet, exactly as a manual payout of the same amount would be.
+
+CHF payouts to a Swiss bank account have no threshold and are always free: they go out from 10.00. Configuring schedules requires the Owner or Admin role.
 
 ### Minimum amount for automatic payouts
 
-You can set a **minimum balance for automatic payouts** under **Dashboard → Payouts**, in the asset your balance is held in (USDT or USDC). A scheduled payout then runs only when your available balance is at least that amount; below it, nothing is paid out that period and the balance is checked again on the next due day. Leave the field empty for no minimum. The minimum comes on top of the rules above: a value below 10.00 does not lower the 10.00 floor, and on the routes with a minimum the CHF 5'000 threshold still applies. Manual payouts are not affected. Setting the minimum requires the Owner or Admin role.
+You can set a **minimum balance for automatic payouts** under **Dashboard → Payouts**, in the asset your balance is held in (USDT or USDC). A scheduled payout then runs as soon as your available balance reaches that amount; below it, nothing is paid out that period and the balance is checked again on the next due day. A value below 10.00 does not lower the 10.00 floor.
+
+If you set a minimum balance, automatic payouts no longer wait for the CHF 5'000 threshold: on the routes with a minimum (EUR to a Swiss bank account, CHF to a foreign bank account, other foreign currencies), a payout below the equivalent of CHF 5'000 is charged **CHF 25**, deducted from the payout, as set out in the [price sheet](https://qint.ch/pricing#payout-fees). Setting the minimum counts as your consent to that fee; the payout row shows the fee and the net amount like any early payout. CHF payouts to a Swiss bank account are always free.
+
+Leave the field empty for no minimum: automatic payouts on the routes with a minimum then wait until your balance reaches the equivalent of CHF 5'000 and are free. Manual payouts are not affected. Setting the minimum requires the Owner or Admin role.
 
 ## Fees
 
@@ -121,5 +130,5 @@ Payout fees apply in addition to the conversion spread and depend on where the m
 The route is decided per payout from the payout currency and the country of your registered IBAN. A GBP payout always falls under **any other foreign-currency payout**. For payout types with a minimum, your balance accumulates until a payout is worth the equivalent of CHF 5'000 (at the current CHF rate) — then it is free. If you need the money earlier, the dashboard shows the fee and the net amount before you confirm; the early-payout fee is deducted from the payout and the **net** amount is transferred. Payout rows and the CSV export carry `fee_amount` and `net_amount`; the requested gross amount is what is reserved from your balance.
 
 <Note>
-Requesting an early payout through the dashboard requires an explicit confirmation of the fee. Scheduled payouts never charge it — they wait for the threshold.
+Requesting an early payout through the dashboard requires an explicit confirmation of the fee. Scheduled payouts charge it only if you have set a [minimum amount for automatic payouts](#minimum-amount-for-automatic-payouts); without one they wait for the threshold and are free.
 </Note>
