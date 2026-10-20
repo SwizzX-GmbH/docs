@@ -87,7 +87,7 @@ shows "Automatic payouts off" instead of the schedule picker. Contact support to
 have scheduled payouts enabled for your account.
 </Note>
 
-Prefer a standing sweep? **Dashboard → Payout settings** offers:
+Prefer a standing sweep? The payout schedule on **Dashboard → Payouts** offers:
 
 | Schedule | Runs |
 | --- | --- |
@@ -97,6 +97,10 @@ Prefer a standing sweep? **Dashboard → Payout settings** offers:
 
 When due, Qint automatically creates one **Bank** payout of the full available balance, converted into your schedule currency (or your bank currency when none is set) — provided it's at least **10.00** in that currency and, for the payout routes with a minimum (see [Fees](#fees)), worth at least the equivalent of **CHF 5'000**. Scheduled payouts never pay the early-payout fee: the balance simply accumulates until it reaches the threshold. Configuring schedules requires the Owner or Admin role.
 
+### Minimum amount for automatic payouts
+
+You can set a **minimum balance for automatic payouts** under **Dashboard → Payouts**, in the asset your balance is held in (USDT or USDC). A scheduled payout then runs only when your available balance is at least that amount; below it, nothing is paid out that period and the balance is checked again on the next due day. Leave the field empty for no minimum. The minimum comes on top of the rules above: a value below 10.00 does not lower the 10.00 floor, and on the routes with a minimum the CHF 5'000 threshold still applies. Manual payouts are not affected. Setting the minimum requires the Owner or Admin role.
+
 ## Fees
 
 Qint's service fee is a small **conversion spread** taken when a payment is credited to your balance — there are no fee lines on invoices or checkout, and converting your balance to CHF, EUR, USD or GBP at payout carries no additional fee. Your current fee plan (spread and who pays it) is shown in the dashboard, where Owner/Admin users can also toggle **who pays it**: absorbed by you, or added on top for the customer.
@@ -105,7 +109,7 @@ Qint's service fee is a small **conversion spread** taken when a payment is cred
 
 ### Payout fees
 
-Payout fees apply in addition to the conversion spread and depend on where the money goes. They are the "price sheet" referenced by the [Terms & Conditions](https://qint.ch/terms#fees) (version 2026-10):
+Payout fees apply in addition to the conversion spread and depend on where the money goes. They are the "price sheet" referenced by the [Terms & Conditions](https://qint.ch/terms#fees) (version 2026-10), published at [qint.ch/pricing](https://qint.ch/pricing#payout-fees). Bank payouts below the equivalent of CHF 5'000 on the routes with a minimum are charged CHF 25 per payout, as set out in the [price sheet](https://qint.ch/pricing#payout-fees):
 
 | Payout type | Minimum amount | Regular payout fee | Payout below CHF 5'000 |
 | --- | --- | --- | --- |
