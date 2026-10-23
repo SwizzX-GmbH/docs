@@ -121,7 +121,7 @@ CHF payouts to a Swiss bank account have no threshold and are always free: they 
 
 You can set a **minimum balance for automatic payouts** under **Dashboard → Payouts**, in your Account Currency (two decimal places). A scheduled payout then runs as soon as your available balance reaches that amount; below it, nothing is paid out that period and the balance is checked again on the next due day. A value below 10.00 does not lower the 10.00 floor.
 
-If you set a minimum balance, automatic payouts no longer wait for the CHF 5'000 threshold: on payouts other than CHF to a Swiss bank account, a payout below CHF 5'000 equivalent in your balance currency is charged **CHF 25**, deducted from the payout, as set out in the [price sheet](https://qint.ch/pricing#payout-fees). Setting the minimum counts as your consent to that fee; the payout row shows the fee and the net amount like any early payout. CHF payouts to a Swiss bank account are always free.
+If you set a minimum balance, automatic payouts no longer wait for the CHF 5'000 threshold: on payouts other than CHF to a Swiss bank account, a payout below CHF 5'000 equivalent is charged **CHF 25**, deducted from the payout, as set out in the [price sheet](https://qint.ch/pricing#payout-fees). Setting the minimum counts as your consent to that fee; the payout row shows the fee and the net amount like any early payout. CHF payouts to a Swiss bank account are always free.
 
 Leave the field empty for no minimum: automatic payouts other than CHF to a Swiss bank account then wait until your balance reaches CHF 5'000 equivalent and are free. Manual payouts are not affected. Setting the minimum requires the Owner or Admin role.
 
@@ -136,9 +136,9 @@ Qint's service fee is a **conversion spread**, starting at 1 %, taken when a pay
 Payout fees apply in addition to the conversion spread and are the same for every merchant. They are the "price sheet" referenced by the [Terms & Conditions](https://qint.ch/terms#fees) (version 2026-10), published at [qint.ch/pricing](https://qint.ch/pricing#payout-fees).
 
 - **CHF to a Swiss bank account:** free.
-- **Other payouts:** free from CHF 5'000 equivalent in your balance currency. Below that, early payout CHF 25.
+- **All other payouts, including CHF to a foreign bank account:** free from CHF 5'000 equivalent, CHF 25 below.
 
-CHF 5'000 equivalent in your balance currency is the amount the payout debits from your balance, converted to CHF at the rate of the request. The CHF 25 is deducted from the payout in the payout currency and the **net** amount is transferred; the dashboard shows the fee and the net amount before you confirm. In the API the quote's `route` is `chf_swiss_bank` for the first case; every other value (`eur_swiss_bank`, `chf_foreign_bank`, `other_foreign_currency`, recorded from the payout currency and the country of your registered IBAN) follows the second. Payout rows and the CSV export carry `fee_amount` and `net_amount`; the requested gross amount is what is reserved from your balance.
+The CHF 5'000 equivalent is measured on each payout: the amount it debits from your balance, converted to CHF at the rate of the request. The CHF 25 is deducted from the payout in the payout currency and the **net** amount is transferred; the dashboard shows the fee and the net amount before you confirm. In the API the quote's `route` is `chf_swiss_bank` for the first case; every other value (`eur_swiss_bank`, `chf_foreign_bank`, `other_foreign_currency`, recorded from the payout currency and the country of your registered IBAN) follows the second. Payout rows and the CSV export carry `fee_amount` and `net_amount`; the requested gross amount is what is reserved from your balance.
 
 <Note>
 Requesting an early payout through the dashboard requires an explicit confirmation of the fee. Scheduled payouts charge it only if you have set a [minimum amount for automatic payouts](#minimum-amount-for-automatic-payouts); without one they wait for the threshold and are free.
